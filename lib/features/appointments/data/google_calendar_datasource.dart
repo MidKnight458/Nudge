@@ -133,7 +133,6 @@ class GoogleCalendarDatasourceImpl implements GoogleCalendarDatasource {
             syncToken: syncToken,
             timeMin: syncToken == null ? timeMin?.toUtc() : null,
             showDeleted: true,
-            singleEvents: syncToken == null && timeMin != null ? true : null,
             pageToken: pageToken,
           );
 
@@ -151,7 +150,7 @@ class GoogleCalendarDatasourceImpl implements GoogleCalendarDatasource {
           }
         } while (pageToken != null && pageToken.isNotEmpty);
       } on calendar.DetailedApiRequestError catch (error) {
-        if (error.status == 410) {
+        if (error.status == 410 || (syncToken != null && error.status == 400)) {
           throw const SyncTokenExpiredException();
         }
         rethrow;
@@ -164,14 +163,26 @@ class GoogleCalendarDatasourceImpl implements GoogleCalendarDatasource {
   Future<T> _withClient<T>(
     Future<T> Function(calendar.CalendarApi api) action,
   ) async {
-    final handle = await _authRepository.openCalendarClient();
-    if (handle == null) {
-      throw const CalendarAuthUnavailableException();
+    Future<T> runAttempt() async {
+      final handle = await _authRepository.openCalendarClient();
+      if (handle == null) {
+        throw const CalendarAuthUnavailableException();
+      }
+      try {
+        return await action(handle.api);
+      } finally {
+        handle.close();
+      }
     }
+
     try {
-      return await action(handle.api);
-    } finally {
-      handle.close();
+      return await runAttempt();
+    } on calendar.DetailedApiRequestError catch (error) {
+      if (error.status != 401) {
+        rethrow;
+      }
+      await _authRepository.clearAuthCache();
+      return runAttempt();
     }
   }
 

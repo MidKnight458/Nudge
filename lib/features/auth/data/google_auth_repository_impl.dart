@@ -49,6 +49,15 @@ class GoogleAuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<void> clearAuthCache() async {
+    try {
+      await _googleSignIn.currentUser?.clearAuthCache();
+    } catch (_) {
+      // Ignore cache clear failures when no cached token exists.
+    }
+  }
+
+  @override
   Future<AuthenticatedCalendarClient?> openCalendarClient() async {
     if (_googleSignIn.currentUser == null) {
       await _googleSignIn.signInSilently(suppressErrors: true);

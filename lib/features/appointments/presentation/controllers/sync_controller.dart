@@ -67,7 +67,12 @@ class SyncController extends Notifier<SyncUiState> {
       AuthState? previous,
       AuthState next,
     ) {
-      if (next.user != null && previous?.user?.id != next.user?.id) {
+      final userChanged = previous?.user?.id != next.user?.id;
+      final finishedSignIn =
+          next.user != null &&
+          !next.isLoading &&
+          (userChanged || previous?.isLoading == true);
+      if (finishedSignIn) {
         unawaited(syncNow(silent: true));
       } else if (next.user == null && previous?.user != null) {
         final repo = ref.read(appointmentsRepositoryProvider);

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:googleapis/calendar/v3.dart' as calendar;
 import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/network/connectivity_service.dart';
 import 'package:nudge/features/appointments/data/google_calendar_datasource.dart';
@@ -293,6 +294,21 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
     } on CalendarAuthUnavailableException {
       return const SyncResult(
         skippedReason: 'Sesión de Google Calendar expirada o sin permisos.',
+      );
+    } on calendar.DetailedApiRequestError catch (error) {
+      if (error.status == 403) {
+        return const SyncResult(
+          errorMessage: 'Google Calendar API sin permisos o no habilitada en Google Cloud (HTTP 403).',
+        );
+      }
+      if (error.status == 401) {
+        return const SyncResult(
+          errorMessage: 'Sesión de Google Calendar expirada. Vuelve a conectar tu cuenta (HTTP 401).',
+        );
+      }
+      return SyncResult(
+        errorMessage:
+            'Error al sincronizar con Google Calendar (HTTP ${error.status}).',
       );
     } catch (_) {
       return const SyncResult(

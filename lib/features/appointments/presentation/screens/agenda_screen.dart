@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:animations/animations.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/theme/pixel_shapes.dart';
 import 'package:nudge/core/utils/date_formatters.dart';
+import 'package:nudge/features/appointments/domain/appointments_repository.dart';
 import 'package:nudge/features/appointments/domain/entities/appointment_entity.dart';
 import 'package:nudge/features/appointments/presentation/controllers/appointments_controller.dart';
 import 'package:nudge/features/appointments/presentation/controllers/sync_controller.dart';
@@ -17,11 +20,74 @@ import 'package:nudge/features/reminders/data/whatsapp_launcher_service.dart';
 import 'package:nudge/features/reminders/presentation/template_editor_sheet.dart';
 
 /// Main offline-first Pixel M3 Expressive agenda screen.
-class AgendaScreen extends ConsumerWidget {
+class AgendaScreen extends ConsumerStatefulWidget {
   const AgendaScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AgendaScreen> createState() => _AgendaScreenState();
+}
+
+class _AgendaScreenState extends ConsumerState<AgendaScreen>
+    with WidgetsBindingObserver {
+  Timer? _foregroundSyncTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _startForegroundSyncTimer();
+  }
+
+  @override
+  void dispose() {
+    _stopForegroundSyncTimer();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startForegroundSyncTimer();
+      _syncInBackgroundIfReady();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      _stopForegroundSyncTimer();
+    }
+  }
+
+  void _startForegroundSyncTimer() {
+    _foregroundSyncTimer?.cancel();
+    _foregroundSyncTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _syncInBackgroundIfReady(),
+    );
+  }
+
+  void _stopForegroundSyncTimer() {
+    _foregroundSyncTimer?.cancel();
+    _foregroundSyncTimer = null;
+  }
+
+  void _syncInBackgroundIfReady() {
+    if (!mounted) {
+      return;
+    }
+    final auth = ref.read(authControllerProvider);
+    final sync = ref.read(syncControllerProvider);
+    if (!auth.isSignedIn ||
+        auth.isLoading ||
+        !sync.isOnline ||
+        sync.isSyncing) {
+      return;
+    }
+    unawaited(ref.read(syncControllerProvider.notifier).syncNow(silent: true));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -52,7 +118,9 @@ class AgendaScreen extends ConsumerWidget {
             Text(
               _buildSyncSubtitle(authState, syncState, pendingSyncCount),
               style: theme.textTheme.labelMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: syncState.lastError != null && authState.isSignedIn
+                    ? colorScheme.error
+                    : colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -70,7 +138,7 @@ class AgendaScreen extends ConsumerWidget {
             tooltip: 'Sincronizar con Google Calendar',
             onPressed: syncState.isSyncing
                 ? null
-                : () => _triggerManualSync(context, ref),
+                : () => _triggerManualSync(context),
             icon: syncState.isSyncing
                 ? const SizedBox(
                     width: 20,
@@ -89,7 +157,7 @@ class AgendaScreen extends ConsumerWidget {
               tooltip: 'Cuenta de Google',
               onPressed: () {
                 HapticFeedback.lightImpact();
-                _showAccountSheet(context, ref);
+                _showAccountSheet(context);
               },
               icon: CircleAvatar(
                 radius: 16,
@@ -120,8 +188,15 @@ class AgendaScreen extends ConsumerWidget {
               isOnline: syncState.isOnline,
               pendingCount: pendingSyncCount,
               onSyncTap: syncState.isOnline && !syncState.isSyncing
-                  ? () => _triggerManualSync(context, ref)
+                  ? () => _triggerManualSync(context)
                   : null,
+            ),
+          if (authState.isSignedIn && syncState.lastError != null)
+            _SyncErrorBanner(
+              errorMessage: syncState.lastError!,
+              onRetryTap: syncState.isSyncing
+                  ? null
+                  : () => _triggerManualSync(context),
             ),
           _TomorrowRemindersBanner(
             totalCount: tomorrowTotal,
@@ -165,7 +240,7 @@ class AgendaScreen extends ConsumerWidget {
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: () => _triggerManualSync(context, ref),
+              onRefresh: () => _triggerManualSync(context),
               child: PageTransitionSwitcher(
                 duration: const Duration(milliseconds: 260),
                 transitionBuilder:
@@ -225,7 +300,7 @@ class AgendaScreen extends ConsumerWidget {
                               existing: appointment,
                             ),
                             onWhatsAppTap: () =>
-                                _sendCardReminder(context, ref, appointment),
+                                _sendCardReminder(context, appointment),
                           );
                         },
                       );
@@ -264,33 +339,49 @@ class AgendaScreen extends ConsumerWidget {
     if (syncState.isSyncing) {
       return 'Sincronizando con Google Calendar...';
     }
+    if (syncState.lastError != null) {
+      return 'Error de sincronización · Toca para reintentar';
+    }
     if (syncState.lastSyncAt != null) {
       return 'Sincronizado ${DateFormatters.formatTime(syncState.lastSyncAt!)}';
     }
     return authState.user?.email ?? 'Google Calendar conectado';
   }
 
-  Future<void> _triggerManualSync(BuildContext context, WidgetRef ref) async {
+  Future<void> _triggerManualSync(BuildContext screenContext) async {
     HapticFeedback.lightImpact();
     final result = await ref
         .read(syncControllerProvider.notifier)
         .syncNow(silent: false);
-    if (!context.mounted) {
+    if (!screenContext.mounted) {
       return;
     }
 
     if (result.hasError) {
-      ScaffoldMessenger.of(context)
+      ScaffoldMessenger.of(screenContext)
           .showSnackBar(SnackBar(content: Text(result.errorMessage!)));
     } else if (result.wasSkipped) {
-      ScaffoldMessenger.of(context)
+      ScaffoldMessenger.of(screenContext)
           .showSnackBar(SnackBar(content: Text(result.skippedReason!)));
+    } else {
+      ScaffoldMessenger.of(
+        screenContext,
+      ).showSnackBar(SnackBar(content: Text(_buildSyncSummaryMessage(result))));
     }
   }
 
+  String _buildSyncSummaryMessage(SyncResult result) {
+    final pushed =
+        result.pushedCreated + result.pushedUpdated + result.pushedDeleted;
+    final pulled = result.pulledUpserted + result.pulledDeleted;
+    if (pushed == 0 && pulled == 0) {
+      return 'Agenda al día con Google Calendar.';
+    }
+    return 'Sincronizado: $pushed enviadas, $pulled actualizadas desde Calendar.';
+  }
+
   Future<void> _sendCardReminder(
-    BuildContext context,
-    WidgetRef ref,
+    BuildContext screenContext,
     AppointmentEntity appointment,
   ) async {
     final tomorrow = DateFormatters.tomorrowRange().start;
@@ -305,8 +396,8 @@ class AgendaScreen extends ConsumerWidget {
     final launched = await ref
         .read(appointmentsControllerProvider.notifier)
         .sendWhatsAppReminder(appointment: appointment, templateBody: template);
-    if (!launched && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    if (!launched && screenContext.mounted) {
+      ScaffoldMessenger.of(screenContext).showSnackBar(
         const SnackBar(
           content: Text('No se pudo abrir WhatsApp en este dispositivo.'),
         ),
@@ -314,9 +405,9 @@ class AgendaScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _showAccountSheet(BuildContext context, WidgetRef ref) {
+  Future<void> _showAccountSheet(BuildContext screenContext) {
     return showModalBottomSheet<void>(
-      context: context,
+      context: screenContext,
       useSafeArea: true,
       builder: (BuildContext sheetContext) {
         return Consumer(
@@ -373,6 +464,15 @@ class AgendaScreen extends ConsumerWidget {
                       ),
                     ),
                   ],
+                  if (auth.isSignedIn && sync.lastError != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      sync.lastError!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.error,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   if (auth.isSignedIn) ...[
                     FilledButton.icon(
@@ -380,7 +480,7 @@ class AgendaScreen extends ConsumerWidget {
                           ? null
                           : () async {
                               Navigator.of(context).pop();
-                              await _triggerManualSync(context, sheetRef);
+                              await _triggerManualSync(screenContext);
                             },
                       icon: const Icon(Icons.sync_rounded),
                       label: const Text('Sincronizar ahora'),
@@ -483,6 +583,54 @@ class _OfflineOrPendingBanner extends StatelessWidget {
           ),
           if (onSyncTap != null)
             TextButton(onPressed: onSyncTap, child: const Text('Subir')),
+        ],
+      ),
+    );
+  }
+}
+
+class _SyncErrorBanner extends StatelessWidget {
+  const _SyncErrorBanner({required this.errorMessage, this.onRetryTap});
+
+  final String errorMessage;
+  final VoidCallback? onRetryTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.errorContainer,
+        borderRadius: PixelShapes.inputBorderRadius,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.sync_problem_rounded,
+            size: 18,
+            color: colorScheme.onErrorContainer,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              errorMessage,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: colorScheme.onErrorContainer,
+              ),
+            ),
+          ),
+          if (onRetryTap != null)
+            TextButton(
+              onPressed: onRetryTap,
+              child: Text(
+                'Reintentar',
+                style: TextStyle(color: colorScheme.onErrorContainer),
+              ),
+            ),
         ],
       ),
     );
