@@ -27,9 +27,18 @@ abstract final class AppConstants {
   static const String metadataClientKey = 'cliente:';
   static const String metadataPhoneKey = 'telefono:';
 
-  /// Default WhatsApp template identifiers.
+  /// Default WhatsApp template identifiers and bodies.
   static const String tomorrowTemplateId = 'tomorrow_reminder';
+  static const String tomorrowTemplateName = 'Recordatorio de mañana';
+  static const String defaultTomorrowReminderBody =
+      'Hola {cliente}, te recordamos tu cita de {servicio} mañana a las {hora}. '
+      'Por favor confírmanos si podrás asistir.';
+
   static const String confirmationTemplateId = 'confirmation';
+  static const String confirmationTemplateName = 'Confirmación de cita';
+  static const String defaultConfirmationBody =
+      'Hola {cliente}, tu cita de {servicio} quedó agendada para el {fecha} '
+      'a las {hora}. ¡Te esperamos!';
 
   /// Default initial sync lookback window when no `syncToken` is stored.
   static const Duration initialSyncLookback = Duration(days: 30);
