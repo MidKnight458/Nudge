@@ -1,4 +1,4 @@
-package com.patoh.nudge
+package com.midknight.nudge
 
 import io.flutter.embedding.android.FlutterActivity
 

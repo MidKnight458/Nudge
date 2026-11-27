@@ -1,7 +1,7 @@
 /// Application-wide constants for Nudge.
 abstract final class AppConstants {
   static const String appName = 'Nudge';
-  static const String packageId = 'com.patoh.nudge';
+  static const String packageId = 'com.midknight.nudge';
 
   /// Material You fallback seed color (Google Pixel Blue).
   static const int fallbackSeedColorValue = 0xFF1A73E8;

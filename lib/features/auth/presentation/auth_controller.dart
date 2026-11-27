@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/features/auth/data/google_auth_repository_impl.dart';
 import 'package:nudge/features/auth/domain/auth_repository.dart';
 
@@ -14,7 +15,7 @@ String mapSignInErrorMessage(Object error) {
     if (code == '10' ||
         code == 'developer_error' ||
         RegExp(r'ApiException:\s*10\b').hasMatch(message)) {
-      return 'Falta configurar el cliente OAuth Android (com.patoh.nudge y huella SHA-1) '
+      return 'Falta configurar el cliente OAuth Android (${AppConstants.packageId} y huella SHA-1) '
           'en Google Cloud Console (código 10).';
     }
     if (code == '12500' ||

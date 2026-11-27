@@ -12,7 +12,7 @@ void main() {
       expect(mapSignInErrorMessage(platformError), contains('código 10'));
       expect(
         mapSignInErrorMessage(PlatformException(code: 'developer_error')),
-        contains('com.patoh.nudge'),
+        contains('com.midknight.nudge'),
       );
     });
 
