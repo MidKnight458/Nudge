@@ -27,16 +27,12 @@ class GoogleAuthRepositoryImpl implements AuthRepository {
       return null;
     }
 
-    final hasScope = await _googleSignIn.canAccessScopes(const <String>[
+    final granted = await _googleSignIn.requestScopes(const <String>[
       AppConstants.calendarScope,
     ]);
-    if (!hasScope) {
-      final granted = await _googleSignIn.requestScopes(const <String>[
-        AppConstants.calendarScope,
-      ]);
-      if (!granted) {
-        return null;
-      }
+    if (!granted) {
+      await _googleSignIn.signOut();
+      return null;
     }
     return _mapAccount(account);
   }

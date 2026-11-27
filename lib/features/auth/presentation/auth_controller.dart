@@ -1,8 +1,42 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nudge/features/auth/data/google_auth_repository_impl.dart';
 import 'package:nudge/features/auth/domain/auth_repository.dart';
+
+/// Maps Google Sign-In exceptions into actionable, non-sensitive messages.
+String mapSignInErrorMessage(Object error) {
+  if (error is PlatformException) {
+    final code = error.code.toLowerCase();
+    final message = error.message ?? '';
+
+    if (code == '10' ||
+        code == 'developer_error' ||
+        RegExp(r'ApiException:\s*10\b').hasMatch(message)) {
+      return 'Falta configurar el cliente OAuth Android (com.patoh.nudge y huella SHA-1) '
+          'en Google Cloud Console (código 10).';
+    }
+    if (code == '12500' ||
+        code == '12502' ||
+        RegExp(r'ApiException:\s*1250[02]\b').hasMatch(message)) {
+      return 'Configura la pantalla de consentimiento OAuth y agrega tu cuenta '
+          'como usuario de prueba en Google Cloud (código 12500).';
+    }
+    if (code == '12501' ||
+        code == 'sign_in_canceled' ||
+        RegExp(r'ApiException:\s*12501\b').hasMatch(message)) {
+      return 'Inicio de sesión cancelado.';
+    }
+    if (code == '7' ||
+        code == 'network_error' ||
+        RegExp(r'ApiException:\s*7\b').hasMatch(message)) {
+      return 'Sin conexión con los servicios de Google. Verifica tu internet.';
+    }
+    return 'No fue posible iniciar sesión con Google (${error.code}).';
+  }
+  return 'No fue posible iniciar sesión con Google.';
+}
 
 final authRepositoryProvider = Provider<AuthRepository>((Ref ref) {
   return GoogleAuthRepositoryImpl();
@@ -81,10 +115,10 @@ class AuthController extends Notifier<AuthState> {
       }
       state = state.copyWith(user: user, isLoading: false, clearError: true);
       return true;
-    } catch (_) {
+    } catch (error) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'No fue posible iniciar sesión con Google.',
+        errorMessage: mapSignInErrorMessage(error),
       );
       return false;
     }
