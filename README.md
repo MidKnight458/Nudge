@@ -1,65 +1,67 @@
+<div align="center">
+
 # Nudge
 
-Aplicación móvil **offline-first** desarrollada en **Flutter 3.x / Dart 3.x** (`com.patoh.nudge`) con estética **Pixel Material 3 Expressive & Material You (`dynamic_color`)**, diseñada para profesionales independientes que necesitan gestionar citas, sincronizarlas bidireccionalmente con **Google Calendar v3** y enviar recordatorios de **WhatsApp sin costos de API** mediante enlaces `wa.me`.
+**Tu agenda de citas estilo Pixel con Google Calendar y recordatorios rápidos por WhatsApp.**
 
-## Características principales
+*Pensada para profesionales independientes y negocios locales que quieren organizar su día sin suscripciones ni costos ocultos.*
 
-- **Material 3 Expressive (Pixel UI):** Soporte completo claro/oscuro con paleta dinámica del sistema (`dynamic_color`) y semilla fallback `#1A73E8`, tarjetas `20dp`, `ModalBottomSheet` `28dp`, FAB tonal y respuesta háptica (`HapticFeedback.lightImpact()`).
-- **Offline-first con Drift / SQLite:** Todas las citas, clientes y plantillas de mensajes se almacenan localmente primero y las mutaciones offline (`pending_create`, `pending_update`, `pending_delete`) se encolan para sincronizarse automáticamente al recuperar conexión.
-- **Sincronización bidireccional con Google Calendar v3:** Autenticación OAuth (`https://www.googleapis.com/auth/calendar.events`), envío de cambios locales (`insert`, `patch`, `delete`), delta sync incremental con `syncToken` y recuperación automática ante `HTTP 410 Gone`.
-- **Contactos priorizando Google & E.164:** Lectura local con prioridad para cuentas `com.google` y normalización internacional E.164 sin `+` ni espacios (`phone_numbers_parser`).
-- **Automatización WhatsApp sin API (`wa.me`):** Plantillas editables con variables `{cliente}`, `{fecha}`, `{hora}` y `{servicio}`, además del flujo rápido **Recordatorios de mañana** para despachar mensajes con un toque y marcar los ya enviados.
+[![Nudge CI/CD](https://github.com/MidKnight458/Nudge/actions/workflows/ci_cd.yml/badge.svg?branch=main)](https://github.com/MidKnight458/Nudge/actions/workflows/ci_cd.yml)
+[![Latest Release](https://img.shields.io/github/v/release/MidKnight458/Nudge?label=Descarga%20APK&color=1A73E8)](https://github.com/MidKnight458/Nudge/releases/latest)
+[![Platform](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://github.com/MidKnight458/Nudge/releases/latest)
 
-## Arquitectura (Clean Architecture + Riverpod)
+[Descargar última versión](https://github.com/MidKnight458/Nudge/releases/latest) · [Reportar un problema](https://github.com/MidKnight458/Nudge/issues)
 
-```text
-lib/
-├── main.dart
-├── app.dart
-├── core/
-│   ├── constants/        # Constantes globales y defaults de plantillas
-│   ├── database/         # Esquema Drift (Clients, Appointments, SyncMetadata, ReminderTemplates)
-│   ├── network/          # ConnectivityService (connectivity_plus)
-│   ├── theme/            # AppTheme (DynamicColorBuilder) y PixelShapes
-│   └── utils/            # PhoneSanitizer E.164 y DateFormatters
-└── features/
-    ├── auth/             # Google Sign-In y cliente autenticado de Calendar
-    ├── contacts/         # Repositorio de contactos (prioridad Google) y ContactPickerSheet
-    ├── appointments/     # AgendaScreen, AppointmentFormSheet, TomorrowRemindersSheet y motor Sync
-    └── reminders/        # Motor de plantillas, TemplateEditorSheet y WhatsAppLauncherService
-```
+</div>
 
-## Requisitos y configuración
+---
 
-1. **Flutter SDK** `>= 3.47.0` (compatible con última `stable` y `material_ui`, Dart `>= 3.13.0 <4.0.0`).
-2. **Android:** `minSdk = 26`, permiso `READ_CONTACTS` y bloque `<queries>` en `android/app/src/main/AndroidManifest.xml` para `com.whatsapp`, `com.whatsapp.w4b` e intents `https`.
-3. **iOS:** `NSContactsUsageDescription` y `LSApplicationQueriesSchemes` (`whatsapp`, `https`) configurados en `ios/Runner/Info.plist`.
-4. **Google OAuth / Calendar API:** Habilitar **Google Calendar API** en Google Cloud Console y registrar el `applicationId` (`com.patoh.nudge`) con su huella SHA-1 para Android / Client ID de iOS antes de probar Sign-In en dispositivo físico.
+## ¿Qué es Nudge?
 
-## Comandos de desarrollo
+**Nudge** convierte tu teléfono en una agenda rápida, clara y confiable. Nació para quienes atienden clientes por cita —consultorios, barberías, estudios, terapeutas, asesorías o freelancers— y buscan evitar inasistencias sin pagar plataformas mensuales ni APIs empresariales.
 
-```bash
-# Instalar dependencias
-flutter pub get
+Todo se guarda primero en tu dispositivo para que nunca dependas de tener señal, se mantiene sincronizado en ambos sentidos con tu **Google Calendar** y te permite enviar recordatorios de **WhatsApp** con un solo toque.
 
-# Generar código de Drift
-dart run build_runner build --delete-conflicting-outputs
+---
 
-# Formateo, análisis estático estricto y pruebas unitarias
-dart format --output=none --set-exit-if-changed .
-flutter analyze --fatal-infos
-flutter test
+## Lo que hace por tu día
 
-# Compilar binarios de release
-flutter build apk --release
-flutter build appbundle --release
-```
+- **Diseño Pixel limpio y adaptable:** Interfaz moderna con **Material You**, modo claro y oscuro automático, y respuesta háptica sutil en cada acción importante.
+- **Funciona incluso sin internet:** Agenda, edita o cancela citas aunque no tengas conexión; Nudge las guarda localmente y las sincroniza automáticamente en cuanto vuelves a estar en línea.
+- **Sincronización bidireccional con Google Calendar:** Los cambios que haces en la app aparecen en tu calendario de Google, y las citas que agregues desde la web o tu computadora llegan directo a Nudge.
+- **Contactos listos para WhatsApp:** Prioriza tus contactos de Google y formatea automáticamente cualquier número local o internacional para abrir el chat sin errores.
+- **Recordatorios de mañana en un toque:** Revisa en una sola lista todas las citas del día siguiente, envía cada recordatorio de WhatsApp con un toque y visualiza cuáles ya confirmaste.
+- **Mensajes a tu manera:** Personaliza las plantillas de recordatorio y confirmación usando datos automáticos como `{cliente}`, `{servicio}`, `{fecha}` y `{hora}`.
+- **100% gratuita y sin intermediarios:** Sin servidores propios, sin cuentas externas adicionales y sin cuotas por mensaje enviado.
 
-## Releases automáticos (CI/CD)
+---
 
-El flujo `.github/workflows/ci_cd.yml` ejecuta `lint_and_test` en cada `push` y `pull_request` hacia `main` y `develop`. Para generar automáticamente el APK (`nudge-vX.Y.Z.apk`), el AAB (`nudge-vX.Y.Z.aab`) y publicar el Release en GitHub:
+## Cómo empezar en 3 pasos
 
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
+1. **Descarga la app:** Ve a la sección de [**Releases**](https://github.com/MidKnight458/Nudge/releases/latest) e instala el archivo `nudge-v*.apk` en tu Android.
+2. **Conecta tu cuenta de Google:** Inicia sesión desde el icono de perfil para mantener tus citas sincronizadas con Google Calendar.
+3. **Agenda y envía recordatorios:** Selecciona a tu cliente desde tus contactos, guarda la cita y envía confirmaciones o recordatorios de mañana por WhatsApp en segundos.
+
+---
+
+## Privacidad
+
+Tus citas, clientes y plantillas permanecen en tu teléfono y en tu propia cuenta de Google Calendar. Nudge no envía tu agenda a servidores de terceros ni recopila tus conversaciones de WhatsApp.
+
+---
+
+<details>
+<summary>Información para desarrolladores</summary>
+
+- **Stack:** Flutter (`>= 3.47.0`, `material_ui`), Dart (`>= 3.13.0`), Riverpod, Drift (SQLite), `dynamic_color`, `flutter_contacts`, `phone_numbers_parser`, `google_sign_in`, `googleapis` (Calendar v3) y `url_launcher`.
+- **Verificación local:**
+  ```bash
+  flutter pub get
+  dart run build_runner build --delete-conflicting-outputs
+  dart format --output=none --set-exit-if-changed .
+  flutter analyze --fatal-infos
+  flutter test
+  ```
+- **Compilación y publicación automática:** Al etiquetar una versión (`git tag -a v1.0.0 -m "Release v1.0.0" && git push origin v1.0.0`), GitHub Actions ejecuta las pruebas, compila el APK y el AAB de release y los adjunta automáticamente en GitHub Releases.
+
+</details>
