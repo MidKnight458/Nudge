@@ -11,48 +11,77 @@ class $ClientsTable extends Clients with TableInfo<$ClientsTable, Client> {
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
-      'id', aliasedName, false,
-      hasAutoIncrement: true,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
-  static const VerificationMeta _googleContactIdMeta =
-      const VerificationMeta('googleContactId');
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _googleContactIdMeta = const VerificationMeta(
+    'googleContactId',
+  );
   @override
   late final GeneratedColumn<String> googleContactId = GeneratedColumn<String>(
-      'google_contact_id', aliasedName, true,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
+    'google_contact_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
-      'name', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _rawPhoneMeta =
-      const VerificationMeta('rawPhone');
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rawPhoneMeta = const VerificationMeta(
+    'rawPhone',
+  );
   @override
   late final GeneratedColumn<String> rawPhone = GeneratedColumn<String>(
-      'raw_phone', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _phoneE164Meta =
-      const VerificationMeta('phoneE164');
+    'raw_phone',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _phoneE164Meta = const VerificationMeta(
+    'phoneE164',
+  );
   @override
   late final GeneratedColumn<String> phoneE164 = GeneratedColumn<String>(
-      'phone_e164', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'phone_e164',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, googleContactId, name, rawPhone, phoneE164];
+  List<GeneratedColumn> get $columns => [
+    id,
+    googleContactId,
+    name,
+    rawPhone,
+    phoneE164,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'clients';
   @override
-  VerificationContext validateIntegrity(Insertable<Client> instance,
-      {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<Client> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -60,25 +89,34 @@ class $ClientsTable extends Clients with TableInfo<$ClientsTable, Client> {
     }
     if (data.containsKey('google_contact_id')) {
       context.handle(
+        _googleContactIdMeta,
+        googleContactId.isAcceptableOrUnknown(
+          data['google_contact_id']!,
           _googleContactIdMeta,
-          googleContactId.isAcceptableOrUnknown(
-              data['google_contact_id']!, _googleContactIdMeta));
+        ),
+      );
     }
     if (data.containsKey('name')) {
       context.handle(
-          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
     if (data.containsKey('raw_phone')) {
-      context.handle(_rawPhoneMeta,
-          rawPhone.isAcceptableOrUnknown(data['raw_phone']!, _rawPhoneMeta));
+      context.handle(
+        _rawPhoneMeta,
+        rawPhone.isAcceptableOrUnknown(data['raw_phone']!, _rawPhoneMeta),
+      );
     } else if (isInserting) {
       context.missing(_rawPhoneMeta);
     }
     if (data.containsKey('phone_e164')) {
-      context.handle(_phoneE164Meta,
-          phoneE164.isAcceptableOrUnknown(data['phone_e164']!, _phoneE164Meta));
+      context.handle(
+        _phoneE164Meta,
+        phoneE164.isAcceptableOrUnknown(data['phone_e164']!, _phoneE164Meta),
+      );
     } else if (isInserting) {
       context.missing(_phoneE164Meta);
     }
@@ -91,16 +129,26 @@ class $ClientsTable extends Clients with TableInfo<$ClientsTable, Client> {
   Client map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Client(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
       googleContactId: attachedDatabase.typeMapping.read(
-          DriftSqlType.string, data['${effectivePrefix}google_contact_id']),
-      name: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
-      rawPhone: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}raw_phone'])!,
-      phoneE164: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}phone_e164'])!,
+        DriftSqlType.string,
+        data['${effectivePrefix}google_contact_id'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      rawPhone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}raw_phone'],
+      )!,
+      phoneE164: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phone_e164'],
+      )!,
     );
   }
 
@@ -116,12 +164,13 @@ class Client extends DataClass implements Insertable<Client> {
   final String name;
   final String rawPhone;
   final String phoneE164;
-  const Client(
-      {required this.id,
-      this.googleContactId,
-      required this.name,
-      required this.rawPhone,
-      required this.phoneE164});
+  const Client({
+    required this.id,
+    this.googleContactId,
+    required this.name,
+    required this.rawPhone,
+    required this.phoneE164,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -147,8 +196,10 @@ class Client extends DataClass implements Insertable<Client> {
     );
   }
 
-  factory Client.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory Client.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Client(
       id: serializer.fromJson<int>(json['id']),
@@ -170,21 +221,21 @@ class Client extends DataClass implements Insertable<Client> {
     };
   }
 
-  Client copyWith(
-          {int? id,
-          Value<String?> googleContactId = const Value.absent(),
-          String? name,
-          String? rawPhone,
-          String? phoneE164}) =>
-      Client(
-        id: id ?? this.id,
-        googleContactId: googleContactId.present
-            ? googleContactId.value
-            : this.googleContactId,
-        name: name ?? this.name,
-        rawPhone: rawPhone ?? this.rawPhone,
-        phoneE164: phoneE164 ?? this.phoneE164,
-      );
+  Client copyWith({
+    int? id,
+    Value<String?> googleContactId = const Value.absent(),
+    String? name,
+    String? rawPhone,
+    String? phoneE164,
+  }) => Client(
+    id: id ?? this.id,
+    googleContactId: googleContactId.present
+        ? googleContactId.value
+        : this.googleContactId,
+    name: name ?? this.name,
+    rawPhone: rawPhone ?? this.rawPhone,
+    phoneE164: phoneE164 ?? this.phoneE164,
+  );
   Client copyWithCompanion(ClientsCompanion data) {
     return Client(
       id: data.id.present ? data.id.value : this.id,
@@ -242,9 +293,9 @@ class ClientsCompanion extends UpdateCompanion<Client> {
     required String name,
     required String rawPhone,
     required String phoneE164,
-  })  : name = Value(name),
-        rawPhone = Value(rawPhone),
-        phoneE164 = Value(phoneE164);
+  }) : name = Value(name),
+       rawPhone = Value(rawPhone),
+       phoneE164 = Value(phoneE164);
   static Insertable<Client> custom({
     Expression<int>? id,
     Expression<String>? googleContactId,
@@ -261,12 +312,13 @@ class ClientsCompanion extends UpdateCompanion<Client> {
     });
   }
 
-  ClientsCompanion copyWith(
-      {Value<int>? id,
-      Value<String?>? googleContactId,
-      Value<String>? name,
-      Value<String>? rawPhone,
-      Value<String>? phoneE164}) {
+  ClientsCompanion copyWith({
+    Value<int>? id,
+    Value<String?>? googleContactId,
+    Value<String>? name,
+    Value<String>? rawPhone,
+    Value<String>? phoneE164,
+  }) {
     return ClientsCompanion(
       id: id ?? this.id,
       googleContactId: googleContactId ?? this.googleContactId,
@@ -319,96 +371,143 @@ class $AppointmentsTable extends Appointments
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
-      'id', aliasedName, false,
-      hasAutoIncrement: true,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
   static const VerificationMeta _googleCalendarEventIdMeta =
       const VerificationMeta('googleCalendarEventId');
   @override
   late final GeneratedColumn<String> googleCalendarEventId =
-      GeneratedColumn<String>('google_calendar_event_id', aliasedName, true,
-          type: DriftSqlType.string,
-          requiredDuringInsert: false,
-          defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
-  static const VerificationMeta _clientIdMeta =
-      const VerificationMeta('clientId');
+      GeneratedColumn<String>(
+        'google_calendar_event_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+      );
+  static const VerificationMeta _clientIdMeta = const VerificationMeta(
+    'clientId',
+  );
   @override
   late final GeneratedColumn<int> clientId = GeneratedColumn<int>(
-      'client_id', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: true,
-      defaultConstraints: GeneratedColumn.constraintIsAlways(
-          'REFERENCES clients (id) ON DELETE CASCADE'));
+    'client_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES clients (id) ON DELETE CASCADE',
+    ),
+  );
   static const VerificationMeta _titleMeta = const VerificationMeta('title');
   @override
   late final GeneratedColumn<String> title = GeneratedColumn<String>(
-      'title', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
-      'notes', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _startTimeMeta =
-      const VerificationMeta('startTime');
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startTimeMeta = const VerificationMeta(
+    'startTime',
+  );
   @override
   late final GeneratedColumn<DateTime> startTime = GeneratedColumn<DateTime>(
-      'start_time', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _endTimeMeta =
-      const VerificationMeta('endTime');
+    'start_time',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endTimeMeta = const VerificationMeta(
+    'endTime',
+  );
   @override
   late final GeneratedColumn<DateTime> endTime = GeneratedColumn<DateTime>(
-      'end_time', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _reminderSentMeta =
-      const VerificationMeta('reminderSent');
+    'end_time',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reminderSentMeta = const VerificationMeta(
+    'reminderSent',
+  );
   @override
   late final GeneratedColumn<bool> reminderSent = GeneratedColumn<bool>(
-      'reminder_sent', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints: GeneratedColumn.constraintIsAlways(
-          'CHECK ("reminder_sent" IN (0, 1))'),
-      defaultValue: const Constant(false));
-  static const VerificationMeta _syncStatusMeta =
-      const VerificationMeta('syncStatus');
+    'reminder_sent',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("reminder_sent" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
   @override
   late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
-      'sync_status', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(AppConstants.syncStatusSynced));
-  static const VerificationMeta _lastModifiedMeta =
-      const VerificationMeta('lastModified');
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(AppConstants.syncStatusSynced),
+  );
+  static const VerificationMeta _lastModifiedMeta = const VerificationMeta(
+    'lastModified',
+  );
   @override
   late final GeneratedColumn<DateTime> lastModified = GeneratedColumn<DateTime>(
-      'last_modified', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+    'last_modified',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        googleCalendarEventId,
-        clientId,
-        title,
-        notes,
-        startTime,
-        endTime,
-        reminderSent,
-        syncStatus,
-        lastModified
-      ];
+    id,
+    googleCalendarEventId,
+    clientId,
+    title,
+    notes,
+    startTime,
+    endTime,
+    reminderSent,
+    syncStatus,
+    lastModified,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'appointments';
   @override
-  VerificationContext validateIntegrity(Insertable<Appointment> instance,
-      {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<Appointment> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -416,55 +515,74 @@ class $AppointmentsTable extends Appointments
     }
     if (data.containsKey('google_calendar_event_id')) {
       context.handle(
+        _googleCalendarEventIdMeta,
+        googleCalendarEventId.isAcceptableOrUnknown(
+          data['google_calendar_event_id']!,
           _googleCalendarEventIdMeta,
-          googleCalendarEventId.isAcceptableOrUnknown(
-              data['google_calendar_event_id']!, _googleCalendarEventIdMeta));
+        ),
+      );
     }
     if (data.containsKey('client_id')) {
-      context.handle(_clientIdMeta,
-          clientId.isAcceptableOrUnknown(data['client_id']!, _clientIdMeta));
+      context.handle(
+        _clientIdMeta,
+        clientId.isAcceptableOrUnknown(data['client_id']!, _clientIdMeta),
+      );
     } else if (isInserting) {
       context.missing(_clientIdMeta);
     }
     if (data.containsKey('title')) {
       context.handle(
-          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
     } else if (isInserting) {
       context.missing(_titleMeta);
     }
     if (data.containsKey('notes')) {
       context.handle(
-          _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
     }
     if (data.containsKey('start_time')) {
-      context.handle(_startTimeMeta,
-          startTime.isAcceptableOrUnknown(data['start_time']!, _startTimeMeta));
+      context.handle(
+        _startTimeMeta,
+        startTime.isAcceptableOrUnknown(data['start_time']!, _startTimeMeta),
+      );
     } else if (isInserting) {
       context.missing(_startTimeMeta);
     }
     if (data.containsKey('end_time')) {
-      context.handle(_endTimeMeta,
-          endTime.isAcceptableOrUnknown(data['end_time']!, _endTimeMeta));
+      context.handle(
+        _endTimeMeta,
+        endTime.isAcceptableOrUnknown(data['end_time']!, _endTimeMeta),
+      );
     } else if (isInserting) {
       context.missing(_endTimeMeta);
     }
     if (data.containsKey('reminder_sent')) {
       context.handle(
+        _reminderSentMeta,
+        reminderSent.isAcceptableOrUnknown(
+          data['reminder_sent']!,
           _reminderSentMeta,
-          reminderSent.isAcceptableOrUnknown(
-              data['reminder_sent']!, _reminderSentMeta));
+        ),
+      );
     }
     if (data.containsKey('sync_status')) {
       context.handle(
-          _syncStatusMeta,
-          syncStatus.isAcceptableOrUnknown(
-              data['sync_status']!, _syncStatusMeta));
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
     }
     if (data.containsKey('last_modified')) {
       context.handle(
+        _lastModifiedMeta,
+        lastModified.isAcceptableOrUnknown(
+          data['last_modified']!,
           _lastModifiedMeta,
-          lastModified.isAcceptableOrUnknown(
-              data['last_modified']!, _lastModifiedMeta));
+        ),
+      );
     } else if (isInserting) {
       context.missing(_lastModifiedMeta);
     }
@@ -477,27 +595,46 @@ class $AppointmentsTable extends Appointments
   Appointment map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Appointment(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
       googleCalendarEventId: attachedDatabase.typeMapping.read(
-          DriftSqlType.string,
-          data['${effectivePrefix}google_calendar_event_id']),
-      clientId: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}client_id'])!,
-      title: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
-      notes: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}notes']),
-      startTime: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}start_time'])!,
-      endTime: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}end_time'])!,
-      reminderSent: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}reminder_sent'])!,
-      syncStatus: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
+        DriftSqlType.string,
+        data['${effectivePrefix}google_calendar_event_id'],
+      ),
+      clientId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}client_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      startTime: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}start_time'],
+      )!,
+      endTime: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}end_time'],
+      )!,
+      reminderSent: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}reminder_sent'],
+      )!,
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
       lastModified: attachedDatabase.typeMapping.read(
-          DriftSqlType.dateTime, data['${effectivePrefix}last_modified'])!,
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_modified'],
+      )!,
     );
   }
 
@@ -518,17 +655,18 @@ class Appointment extends DataClass implements Insertable<Appointment> {
   final bool reminderSent;
   final String syncStatus;
   final DateTime lastModified;
-  const Appointment(
-      {required this.id,
-      this.googleCalendarEventId,
-      required this.clientId,
-      required this.title,
-      this.notes,
-      required this.startTime,
-      required this.endTime,
-      required this.reminderSent,
-      required this.syncStatus,
-      required this.lastModified});
+  const Appointment({
+    required this.id,
+    this.googleCalendarEventId,
+    required this.clientId,
+    required this.title,
+    this.notes,
+    required this.startTime,
+    required this.endTime,
+    required this.reminderSent,
+    required this.syncStatus,
+    required this.lastModified,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -557,8 +695,9 @@ class Appointment extends DataClass implements Insertable<Appointment> {
           : Value(googleCalendarEventId),
       clientId: Value(clientId),
       title: Value(title),
-      notes:
-          notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
       startTime: Value(startTime),
       endTime: Value(endTime),
       reminderSent: Value(reminderSent),
@@ -567,13 +706,16 @@ class Appointment extends DataClass implements Insertable<Appointment> {
     );
   }
 
-  factory Appointment.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory Appointment.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Appointment(
       id: serializer.fromJson<int>(json['id']),
-      googleCalendarEventId:
-          serializer.fromJson<String?>(json['googleCalendarEventId']),
+      googleCalendarEventId: serializer.fromJson<String?>(
+        json['googleCalendarEventId'],
+      ),
       clientId: serializer.fromJson<int>(json['clientId']),
       title: serializer.fromJson<String>(json['title']),
       notes: serializer.fromJson<String?>(json['notes']),
@@ -589,8 +731,9 @@ class Appointment extends DataClass implements Insertable<Appointment> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'googleCalendarEventId':
-          serializer.toJson<String?>(googleCalendarEventId),
+      'googleCalendarEventId': serializer.toJson<String?>(
+        googleCalendarEventId,
+      ),
       'clientId': serializer.toJson<int>(clientId),
       'title': serializer.toJson<String>(title),
       'notes': serializer.toJson<String?>(notes),
@@ -602,31 +745,31 @@ class Appointment extends DataClass implements Insertable<Appointment> {
     };
   }
 
-  Appointment copyWith(
-          {int? id,
-          Value<String?> googleCalendarEventId = const Value.absent(),
-          int? clientId,
-          String? title,
-          Value<String?> notes = const Value.absent(),
-          DateTime? startTime,
-          DateTime? endTime,
-          bool? reminderSent,
-          String? syncStatus,
-          DateTime? lastModified}) =>
-      Appointment(
-        id: id ?? this.id,
-        googleCalendarEventId: googleCalendarEventId.present
-            ? googleCalendarEventId.value
-            : this.googleCalendarEventId,
-        clientId: clientId ?? this.clientId,
-        title: title ?? this.title,
-        notes: notes.present ? notes.value : this.notes,
-        startTime: startTime ?? this.startTime,
-        endTime: endTime ?? this.endTime,
-        reminderSent: reminderSent ?? this.reminderSent,
-        syncStatus: syncStatus ?? this.syncStatus,
-        lastModified: lastModified ?? this.lastModified,
-      );
+  Appointment copyWith({
+    int? id,
+    Value<String?> googleCalendarEventId = const Value.absent(),
+    int? clientId,
+    String? title,
+    Value<String?> notes = const Value.absent(),
+    DateTime? startTime,
+    DateTime? endTime,
+    bool? reminderSent,
+    String? syncStatus,
+    DateTime? lastModified,
+  }) => Appointment(
+    id: id ?? this.id,
+    googleCalendarEventId: googleCalendarEventId.present
+        ? googleCalendarEventId.value
+        : this.googleCalendarEventId,
+    clientId: clientId ?? this.clientId,
+    title: title ?? this.title,
+    notes: notes.present ? notes.value : this.notes,
+    startTime: startTime ?? this.startTime,
+    endTime: endTime ?? this.endTime,
+    reminderSent: reminderSent ?? this.reminderSent,
+    syncStatus: syncStatus ?? this.syncStatus,
+    lastModified: lastModified ?? this.lastModified,
+  );
   Appointment copyWithCompanion(AppointmentsCompanion data) {
     return Appointment(
       id: data.id.present ? data.id.value : this.id,
@@ -641,8 +784,9 @@ class Appointment extends DataClass implements Insertable<Appointment> {
       reminderSent: data.reminderSent.present
           ? data.reminderSent.value
           : this.reminderSent,
-      syncStatus:
-          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
       lastModified: data.lastModified.present
           ? data.lastModified.value
           : this.lastModified,
@@ -667,8 +811,18 @@ class Appointment extends DataClass implements Insertable<Appointment> {
   }
 
   @override
-  int get hashCode => Object.hash(id, googleCalendarEventId, clientId, title,
-      notes, startTime, endTime, reminderSent, syncStatus, lastModified);
+  int get hashCode => Object.hash(
+    id,
+    googleCalendarEventId,
+    clientId,
+    title,
+    notes,
+    startTime,
+    endTime,
+    reminderSent,
+    syncStatus,
+    lastModified,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -719,11 +873,11 @@ class AppointmentsCompanion extends UpdateCompanion<Appointment> {
     this.reminderSent = const Value.absent(),
     this.syncStatus = const Value.absent(),
     required DateTime lastModified,
-  })  : clientId = Value(clientId),
-        title = Value(title),
-        startTime = Value(startTime),
-        endTime = Value(endTime),
-        lastModified = Value(lastModified);
+  }) : clientId = Value(clientId),
+       title = Value(title),
+       startTime = Value(startTime),
+       endTime = Value(endTime),
+       lastModified = Value(lastModified);
   static Insertable<Appointment> custom({
     Expression<int>? id,
     Expression<String>? googleCalendarEventId,
@@ -751,17 +905,18 @@ class AppointmentsCompanion extends UpdateCompanion<Appointment> {
     });
   }
 
-  AppointmentsCompanion copyWith(
-      {Value<int>? id,
-      Value<String?>? googleCalendarEventId,
-      Value<int>? clientId,
-      Value<String>? title,
-      Value<String?>? notes,
-      Value<DateTime>? startTime,
-      Value<DateTime>? endTime,
-      Value<bool>? reminderSent,
-      Value<String>? syncStatus,
-      Value<DateTime>? lastModified}) {
+  AppointmentsCompanion copyWith({
+    Value<int>? id,
+    Value<String?>? googleCalendarEventId,
+    Value<int>? clientId,
+    Value<String>? title,
+    Value<String?>? notes,
+    Value<DateTime>? startTime,
+    Value<DateTime>? endTime,
+    Value<bool>? reminderSent,
+    Value<String>? syncStatus,
+    Value<DateTime>? lastModified,
+  }) {
     return AppointmentsCompanion(
       id: id ?? this.id,
       googleCalendarEventId:
@@ -784,8 +939,9 @@ class AppointmentsCompanion extends UpdateCompanion<Appointment> {
       map['id'] = Variable<int>(id.value);
     }
     if (googleCalendarEventId.present) {
-      map['google_calendar_event_id'] =
-          Variable<String>(googleCalendarEventId.value);
+      map['google_calendar_event_id'] = Variable<String>(
+        googleCalendarEventId.value,
+      );
     }
     if (clientId.present) {
       map['client_id'] = Variable<int>(clientId.value);
@@ -841,22 +997,36 @@ class $SyncMetadataTable extends SyncMetadata
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
-      'id', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(1));
-  static const VerificationMeta _syncTokenMeta =
-      const VerificationMeta('syncToken');
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _syncTokenMeta = const VerificationMeta(
+    'syncToken',
+  );
   @override
   late final GeneratedColumn<String> syncToken = GeneratedColumn<String>(
-      'sync_token', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _lastSyncTimestampMeta =
-      const VerificationMeta('lastSyncTimestamp');
+    'sync_token',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastSyncTimestampMeta = const VerificationMeta(
+    'lastSyncTimestamp',
+  );
   @override
   late final GeneratedColumn<DateTime> lastSyncTimestamp =
-      GeneratedColumn<DateTime>('last_sync_timestamp', aliasedName, true,
-          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+      GeneratedColumn<DateTime>(
+        'last_sync_timestamp',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [id, syncToken, lastSyncTimestamp];
   @override
@@ -865,22 +1035,29 @@ class $SyncMetadataTable extends SyncMetadata
   String get actualTableName => $name;
   static const String $name = 'sync_metadata';
   @override
-  VerificationContext validateIntegrity(Insertable<SyncMetadataRecord> instance,
-      {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<SyncMetadataRecord> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
     if (data.containsKey('sync_token')) {
-      context.handle(_syncTokenMeta,
-          syncToken.isAcceptableOrUnknown(data['sync_token']!, _syncTokenMeta));
+      context.handle(
+        _syncTokenMeta,
+        syncToken.isAcceptableOrUnknown(data['sync_token']!, _syncTokenMeta),
+      );
     }
     if (data.containsKey('last_sync_timestamp')) {
       context.handle(
+        _lastSyncTimestampMeta,
+        lastSyncTimestamp.isAcceptableOrUnknown(
+          data['last_sync_timestamp']!,
           _lastSyncTimestampMeta,
-          lastSyncTimestamp.isAcceptableOrUnknown(
-              data['last_sync_timestamp']!, _lastSyncTimestampMeta));
+        ),
+      );
     }
     return context;
   }
@@ -891,12 +1068,18 @@ class $SyncMetadataTable extends SyncMetadata
   SyncMetadataRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return SyncMetadataRecord(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
-      syncToken: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}sync_token']),
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      syncToken: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_token'],
+      ),
       lastSyncTimestamp: attachedDatabase.typeMapping.read(
-          DriftSqlType.dateTime, data['${effectivePrefix}last_sync_timestamp']),
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_sync_timestamp'],
+      ),
     );
   }
 
@@ -911,8 +1094,11 @@ class SyncMetadataRecord extends DataClass
   final int id;
   final String? syncToken;
   final DateTime? lastSyncTimestamp;
-  const SyncMetadataRecord(
-      {required this.id, this.syncToken, this.lastSyncTimestamp});
+  const SyncMetadataRecord({
+    required this.id,
+    this.syncToken,
+    this.lastSyncTimestamp,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -938,14 +1124,17 @@ class SyncMetadataRecord extends DataClass
     );
   }
 
-  factory SyncMetadataRecord.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory SyncMetadataRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return SyncMetadataRecord(
       id: serializer.fromJson<int>(json['id']),
       syncToken: serializer.fromJson<String?>(json['syncToken']),
-      lastSyncTimestamp:
-          serializer.fromJson<DateTime?>(json['lastSyncTimestamp']),
+      lastSyncTimestamp: serializer.fromJson<DateTime?>(
+        json['lastSyncTimestamp'],
+      ),
     );
   }
   @override
@@ -958,17 +1147,17 @@ class SyncMetadataRecord extends DataClass
     };
   }
 
-  SyncMetadataRecord copyWith(
-          {int? id,
-          Value<String?> syncToken = const Value.absent(),
-          Value<DateTime?> lastSyncTimestamp = const Value.absent()}) =>
-      SyncMetadataRecord(
-        id: id ?? this.id,
-        syncToken: syncToken.present ? syncToken.value : this.syncToken,
-        lastSyncTimestamp: lastSyncTimestamp.present
-            ? lastSyncTimestamp.value
-            : this.lastSyncTimestamp,
-      );
+  SyncMetadataRecord copyWith({
+    int? id,
+    Value<String?> syncToken = const Value.absent(),
+    Value<DateTime?> lastSyncTimestamp = const Value.absent(),
+  }) => SyncMetadataRecord(
+    id: id ?? this.id,
+    syncToken: syncToken.present ? syncToken.value : this.syncToken,
+    lastSyncTimestamp: lastSyncTimestamp.present
+        ? lastSyncTimestamp.value
+        : this.lastSyncTimestamp,
+  );
   SyncMetadataRecord copyWithCompanion(SyncMetadataCompanion data) {
     return SyncMetadataRecord(
       id: data.id.present ? data.id.value : this.id,
@@ -1026,10 +1215,11 @@ class SyncMetadataCompanion extends UpdateCompanion<SyncMetadataRecord> {
     });
   }
 
-  SyncMetadataCompanion copyWith(
-      {Value<int>? id,
-      Value<String?>? syncToken,
-      Value<DateTime?>? lastSyncTimestamp}) {
+  SyncMetadataCompanion copyWith({
+    Value<int>? id,
+    Value<String?>? syncToken,
+    Value<DateTime?>? lastSyncTimestamp,
+  }) {
     return SyncMetadataCompanion(
       id: id ?? this.id,
       syncToken: syncToken ?? this.syncToken,
@@ -1072,24 +1262,41 @@ class $ReminderTemplatesTable extends ReminderTemplates
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
-      'id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
-      'name', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _bodyMeta = const VerificationMeta('body');
   @override
   late final GeneratedColumn<String> body = GeneratedColumn<String>(
-      'body', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
   @override
   late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
   @override
   List<GeneratedColumn> get $columns => [id, name, body, updatedAt];
   @override
@@ -1098,8 +1305,10 @@ class $ReminderTemplatesTable extends ReminderTemplates
   String get actualTableName => $name;
   static const String $name = 'reminder_templates';
   @override
-  VerificationContext validateIntegrity(Insertable<ReminderTemplate> instance,
-      {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<ReminderTemplate> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -1109,19 +1318,25 @@ class $ReminderTemplatesTable extends ReminderTemplates
     }
     if (data.containsKey('name')) {
       context.handle(
-          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
     if (data.containsKey('body')) {
       context.handle(
-          _bodyMeta, body.isAcceptableOrUnknown(data['body']!, _bodyMeta));
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
     } else if (isInserting) {
       context.missing(_bodyMeta);
     }
     if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
@@ -1134,14 +1349,22 @@ class $ReminderTemplatesTable extends ReminderTemplates
   ReminderTemplate map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return ReminderTemplate(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      name: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
-      body: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}body'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
     );
   }
 
@@ -1157,11 +1380,12 @@ class ReminderTemplate extends DataClass
   final String name;
   final String body;
   final DateTime updatedAt;
-  const ReminderTemplate(
-      {required this.id,
-      required this.name,
-      required this.body,
-      required this.updatedAt});
+  const ReminderTemplate({
+    required this.id,
+    required this.name,
+    required this.body,
+    required this.updatedAt,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1181,8 +1405,10 @@ class ReminderTemplate extends DataClass
     );
   }
 
-  factory ReminderTemplate.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory ReminderTemplate.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return ReminderTemplate(
       id: serializer.fromJson<String>(json['id']),
@@ -1202,14 +1428,17 @@ class ReminderTemplate extends DataClass
     };
   }
 
-  ReminderTemplate copyWith(
-          {String? id, String? name, String? body, DateTime? updatedAt}) =>
-      ReminderTemplate(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        body: body ?? this.body,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  ReminderTemplate copyWith({
+    String? id,
+    String? name,
+    String? body,
+    DateTime? updatedAt,
+  }) => ReminderTemplate(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    body: body ?? this.body,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
   ReminderTemplate copyWithCompanion(ReminderTemplatesCompanion data) {
     return ReminderTemplate(
       id: data.id.present ? data.id.value : this.id,
@@ -1261,10 +1490,10 @@ class ReminderTemplatesCompanion extends UpdateCompanion<ReminderTemplate> {
     required String body,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
-  })  : id = Value(id),
-        name = Value(name),
-        body = Value(body),
-        updatedAt = Value(updatedAt);
+  }) : id = Value(id),
+       name = Value(name),
+       body = Value(body),
+       updatedAt = Value(updatedAt);
   static Insertable<ReminderTemplate> custom({
     Expression<String>? id,
     Expression<String>? name,
@@ -1281,12 +1510,13 @@ class ReminderTemplatesCompanion extends UpdateCompanion<ReminderTemplate> {
     });
   }
 
-  ReminderTemplatesCompanion copyWith(
-      {Value<String>? id,
-      Value<String>? name,
-      Value<String>? body,
-      Value<DateTime>? updatedAt,
-      Value<int>? rowid}) {
+  ReminderTemplatesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? body,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
     return ReminderTemplatesCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
@@ -1342,20 +1572,22 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [clients, appointments, syncMetadata, reminderTemplates];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    clients,
+    appointments,
+    syncMetadata,
+    reminderTemplates,
+  ];
   @override
-  StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules(
-        [
-          WritePropagation(
-            on: TableUpdateQuery.onTableName('clients',
-                limitUpdateKind: UpdateKind.delete),
-            result: [
-              TableUpdate('appointments', kind: UpdateKind.delete),
-            ],
-          ),
-        ],
-      );
+  StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'clients',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('appointments', kind: UpdateKind.delete)],
+    ),
+  ]);
 }
 
 typedef $$ClientsTableCreateCompanionBuilder = ClientsCompanion Function({
@@ -1378,17 +1610,21 @@ final class $$ClientsTableReferences
   $$ClientsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static MultiTypedResultKey<$AppointmentsTable, List<Appointment>>
-      _appointmentsRefsTable(_$AppDatabase db) =>
-          MultiTypedResultKey.fromTable(db.appointments,
-              aliasName: 'clients__id__appointments__client_id');
+  _appointmentsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.appointments,
+    aliasName: 'clients__id__appointments__client_id',
+  );
 
   $$AppointmentsTableProcessedTableManager get appointmentsRefs {
-    final manager = $$AppointmentsTableTableManager($_db, $_db.appointments)
-        .filter((f) => f.clientId.id.sqlEquals($_itemColumn<int>('id')!));
+    final manager = $$AppointmentsTableTableManager(
+      $_db,
+      $_db.appointments,
+    ).filter((f) => f.clientId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_appointmentsRefsTable($_db));
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: cache));
+      manager.$state.copyWith(prefetchedData: cache),
+    );
   }
 }
 
@@ -1402,39 +1638,52 @@ class $$ClientsTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get googleContactId => $composableBuilder(
-      column: $table.googleContactId,
-      builder: (column) => ColumnFilters(column));
+    column: $table.googleContactId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get name => $composableBuilder(
-      column: $table.name, builder: (column) => ColumnFilters(column));
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get rawPhone => $composableBuilder(
-      column: $table.rawPhone, builder: (column) => ColumnFilters(column));
+    column: $table.rawPhone,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get phoneE164 => $composableBuilder(
-      column: $table.phoneE164, builder: (column) => ColumnFilters(column));
+    column: $table.phoneE164,
+    builder: (column) => ColumnFilters(column),
+  );
 
   Expression<bool> appointmentsRefs(
-      Expression<bool> Function($$AppointmentsTableFilterComposer f) f) {
+    Expression<bool> Function($$AppointmentsTableFilterComposer f) f,
+  ) {
     final $$AppointmentsTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.id,
-        referencedTable: $db.appointments,
-        getReferencedColumn: (t) => t.clientId,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$AppointmentsTableFilterComposer(
-              $db: $db,
-              $table: $db.appointments,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.appointments,
+      getReferencedColumn: (t) => t.clientId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AppointmentsTableFilterComposer(
+            $db: $db,
+            $table: $db.appointments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 }
@@ -1449,20 +1698,29 @@ class $$ClientsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get googleContactId => $composableBuilder(
-      column: $table.googleContactId,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.googleContactId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get name => $composableBuilder(
-      column: $table.name, builder: (column) => ColumnOrderings(column));
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get rawPhone => $composableBuilder(
-      column: $table.rawPhone, builder: (column) => ColumnOrderings(column));
+    column: $table.rawPhone,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get phoneE164 => $composableBuilder(
-      column: $table.phoneE164, builder: (column) => ColumnOrderings(column));
+    column: $table.phoneE164,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ClientsTableAnnotationComposer
@@ -1478,7 +1736,9 @@ class $$ClientsTableAnnotationComposer
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<String> get googleContactId => $composableBuilder(
-      column: $table.googleContactId, builder: (column) => column);
+    column: $table.googleContactId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
@@ -1490,41 +1750,49 @@ class $$ClientsTableAnnotationComposer
       $composableBuilder(column: $table.phoneE164, builder: (column) => column);
 
   Expression<T> appointmentsRefs<T extends Object>(
-      Expression<T> Function($$AppointmentsTableAnnotationComposer a) f) {
+    Expression<T> Function($$AppointmentsTableAnnotationComposer a) f,
+  ) {
     final $$AppointmentsTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.id,
-        referencedTable: $db.appointments,
-        getReferencedColumn: (t) => t.clientId,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$AppointmentsTableAnnotationComposer(
-              $db: $db,
-              $table: $db.appointments,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.appointments,
+      getReferencedColumn: (t) => t.clientId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AppointmentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.appointments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 }
 
-class $$ClientsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $ClientsTable,
-    Client,
-    $$ClientsTableFilterComposer,
-    $$ClientsTableOrderingComposer,
-    $$ClientsTableAnnotationComposer,
-    $$ClientsTableCreateCompanionBuilder,
-    $$ClientsTableUpdateCompanionBuilder,
-    (Client, $$ClientsTableReferences),
-    Client,
-    PrefetchHooks Function({bool appointmentsRefs})> {
+class $$ClientsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ClientsTable,
+          Client,
+          $$ClientsTableFilterComposer,
+          $$ClientsTableOrderingComposer,
+          $$ClientsTableAnnotationComposer,
+          $$ClientsTableCreateCompanionBuilder,
+          $$ClientsTableUpdateCompanionBuilder,
+          (Client, $$ClientsTableReferences),
+          Client,
+          PrefetchHooks Function({bool appointmentsRefs})
+        > {
   $$ClientsTableTableManager(_$AppDatabase db, $ClientsTable table)
-      : super(TableManagerState(
+    : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -1533,39 +1801,41 @@ class $$ClientsTableTableManager extends RootTableManager<
               $$ClientsTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$ClientsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<int> id = const Value.absent(),
-            Value<String?> googleContactId = const Value.absent(),
-            Value<String> name = const Value.absent(),
-            Value<String> rawPhone = const Value.absent(),
-            Value<String> phoneE164 = const Value.absent(),
-          }) =>
-              ClientsCompanion(
-            id: id,
-            googleContactId: googleContactId,
-            name: name,
-            rawPhone: rawPhone,
-            phoneE164: phoneE164,
-          ),
-          createCompanionCallback: ({
-            Value<int> id = const Value.absent(),
-            Value<String?> googleContactId = const Value.absent(),
-            required String name,
-            required String rawPhone,
-            required String phoneE164,
-          }) =>
-              ClientsCompanion.insert(
-            id: id,
-            googleContactId: googleContactId,
-            name: name,
-            rawPhone: rawPhone,
-            phoneE164: phoneE164,
-          ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> googleContactId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> rawPhone = const Value.absent(),
+                Value<String> phoneE164 = const Value.absent(),
+              }) => ClientsCompanion(
+                id: id,
+                googleContactId: googleContactId,
+                name: name,
+                rawPhone: rawPhone,
+                phoneE164: phoneE164,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> googleContactId = const Value.absent(),
+                required String name,
+                required String rawPhone,
+                required String phoneE164,
+              }) => ClientsCompanion.insert(
+                id: id,
+                googleContactId: googleContactId,
+                name: name,
+                rawPhone: rawPhone,
+                phoneE164: phoneE164,
+              ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (
-                    e.readTable<$ClientsTable, Client>(table),
-                    $$ClientsTableReferences(db, table, e)
-                  ))
+              .map(
+                (e) => (
+                  e.readTable<$ClientsTable, Client>(table),
+                  $$ClientsTableReferences(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: ({appointmentsRefs = false}) {
             return PrefetchHooks(
@@ -1575,62 +1845,72 @@ class $$ClientsTableTableManager extends RootTableManager<
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (appointmentsRefs)
-                    await $_getPrefetchedDataByColumns<Client, $ClientsTable,
-                            Appointment, $AppointmentsTable>(
-                        currentTable: table,
-                        referencedTable:
-                            $$ClientsTableReferences._appointmentsRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$ClientsTableReferences(db, table, p0)
-                                .appointmentsRefs,
-                        currentColumn: 'id',
-                        referencedColumn: 'client_id',
-                        typedResults: items)
+                    await $_getPrefetchedDataByColumns<
+                      Client,
+                      $ClientsTable,
+                      Appointment,
+                      $AppointmentsTable
+                    >(
+                      currentTable: table,
+                      referencedTable: $$ClientsTableReferences
+                          ._appointmentsRefsTable(db),
+                      managerFromTypedResult: (p0) => $$ClientsTableReferences(
+                        db,
+                        table,
+                        p0,
+                      ).appointmentsRefs,
+                      currentColumn: 'id',
+                      referencedColumn: 'client_id',
+                      typedResults: items,
+                    ),
                 ];
               },
             );
           },
-        ));
+        ),
+      );
 }
 
-typedef $$ClientsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $ClientsTable,
-    Client,
-    $$ClientsTableFilterComposer,
-    $$ClientsTableOrderingComposer,
-    $$ClientsTableAnnotationComposer,
-    $$ClientsTableCreateCompanionBuilder,
-    $$ClientsTableUpdateCompanionBuilder,
-    (Client, $$ClientsTableReferences),
-    Client,
-    PrefetchHooks Function({bool appointmentsRefs})>;
-typedef $$AppointmentsTableCreateCompanionBuilder = AppointmentsCompanion
-    Function({
-  Value<int> id,
-  Value<String?> googleCalendarEventId,
-  required int clientId,
-  required String title,
-  Value<String?> notes,
-  required DateTime startTime,
-  required DateTime endTime,
-  Value<bool> reminderSent,
-  Value<String> syncStatus,
-  required DateTime lastModified,
-});
-typedef $$AppointmentsTableUpdateCompanionBuilder = AppointmentsCompanion
-    Function({
-  Value<int> id,
-  Value<String?> googleCalendarEventId,
-  Value<int> clientId,
-  Value<String> title,
-  Value<String?> notes,
-  Value<DateTime> startTime,
-  Value<DateTime> endTime,
-  Value<bool> reminderSent,
-  Value<String> syncStatus,
-  Value<DateTime> lastModified,
-});
+typedef $$ClientsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ClientsTable,
+      Client,
+      $$ClientsTableFilterComposer,
+      $$ClientsTableOrderingComposer,
+      $$ClientsTableAnnotationComposer,
+      $$ClientsTableCreateCompanionBuilder,
+      $$ClientsTableUpdateCompanionBuilder,
+      (Client, $$ClientsTableReferences),
+      Client,
+      PrefetchHooks Function({bool appointmentsRefs})
+    >;
+typedef $$AppointmentsTableCreateCompanionBuilder =
+    AppointmentsCompanion Function({
+      Value<int> id,
+      Value<String?> googleCalendarEventId,
+      required int clientId,
+      required String title,
+      Value<String?> notes,
+      required DateTime startTime,
+      required DateTime endTime,
+      Value<bool> reminderSent,
+      Value<String> syncStatus,
+      required DateTime lastModified,
+    });
+typedef $$AppointmentsTableUpdateCompanionBuilder =
+    AppointmentsCompanion Function({
+      Value<int> id,
+      Value<String?> googleCalendarEventId,
+      Value<int> clientId,
+      Value<String> title,
+      Value<String?> notes,
+      Value<DateTime> startTime,
+      Value<DateTime> endTime,
+      Value<bool> reminderSent,
+      Value<String> syncStatus,
+      Value<DateTime> lastModified,
+    });
 
 final class $$AppointmentsTableReferences
     extends BaseReferences<_$AppDatabase, $AppointmentsTable, Appointment> {
@@ -1642,12 +1922,15 @@ final class $$AppointmentsTableReferences
   $$ClientsTableProcessedTableManager get clientId {
     final $_column = $_itemColumn<int>('client_id')!;
 
-    final manager = $$ClientsTableTableManager($_db, $_db.clients)
-        .filter((f) => f.id.sqlEquals($_column));
+    final manager = $$ClientsTableTableManager(
+      $_db,
+      $_db.clients,
+    ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_clientIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: [item]));
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
   }
 }
 
@@ -1661,50 +1944,70 @@ class $$AppointmentsTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get googleCalendarEventId => $composableBuilder(
-      column: $table.googleCalendarEventId,
-      builder: (column) => ColumnFilters(column));
+    column: $table.googleCalendarEventId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get title => $composableBuilder(
-      column: $table.title, builder: (column) => ColumnFilters(column));
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get notes => $composableBuilder(
-      column: $table.notes, builder: (column) => ColumnFilters(column));
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get startTime => $composableBuilder(
-      column: $table.startTime, builder: (column) => ColumnFilters(column));
+    column: $table.startTime,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get endTime => $composableBuilder(
-      column: $table.endTime, builder: (column) => ColumnFilters(column));
+    column: $table.endTime,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get reminderSent => $composableBuilder(
-      column: $table.reminderSent, builder: (column) => ColumnFilters(column));
+    column: $table.reminderSent,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get syncStatus => $composableBuilder(
-      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get lastModified => $composableBuilder(
-      column: $table.lastModified, builder: (column) => ColumnFilters(column));
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$ClientsTableFilterComposer get clientId {
     final $$ClientsTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.clientId,
-        referencedTable: $db.clients,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$ClientsTableFilterComposer(
-              $db: $db,
-              $table: $db.clients,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.clientId,
+      referencedTable: $db.clients,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ClientsTableFilterComposer(
+            $db: $db,
+            $table: $db.clients,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 }
@@ -1719,52 +2022,70 @@ class $$AppointmentsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get googleCalendarEventId => $composableBuilder(
-      column: $table.googleCalendarEventId,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.googleCalendarEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get title => $composableBuilder(
-      column: $table.title, builder: (column) => ColumnOrderings(column));
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get notes => $composableBuilder(
-      column: $table.notes, builder: (column) => ColumnOrderings(column));
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get startTime => $composableBuilder(
-      column: $table.startTime, builder: (column) => ColumnOrderings(column));
+    column: $table.startTime,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get endTime => $composableBuilder(
-      column: $table.endTime, builder: (column) => ColumnOrderings(column));
+    column: $table.endTime,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get reminderSent => $composableBuilder(
-      column: $table.reminderSent,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.reminderSent,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get syncStatus => $composableBuilder(
-      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get lastModified => $composableBuilder(
-      column: $table.lastModified,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$ClientsTableOrderingComposer get clientId {
     final $$ClientsTableOrderingComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.clientId,
-        referencedTable: $db.clients,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$ClientsTableOrderingComposer(
-              $db: $db,
-              $table: $db.clients,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.clientId,
+      referencedTable: $db.clients,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ClientsTableOrderingComposer(
+            $db: $db,
+            $table: $db.clients,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 }
@@ -1782,7 +2103,9 @@ class $$AppointmentsTableAnnotationComposer
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<String> get googleCalendarEventId => $composableBuilder(
-      column: $table.googleCalendarEventId, builder: (column) => column);
+    column: $table.googleCalendarEventId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
@@ -1797,49 +2120,62 @@ class $$AppointmentsTableAnnotationComposer
       $composableBuilder(column: $table.endTime, builder: (column) => column);
 
   GeneratedColumn<bool> get reminderSent => $composableBuilder(
-      column: $table.reminderSent, builder: (column) => column);
+    column: $table.reminderSent,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
-      column: $table.syncStatus, builder: (column) => column);
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get lastModified => $composableBuilder(
-      column: $table.lastModified, builder: (column) => column);
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
 
   $$ClientsTableAnnotationComposer get clientId {
     final $$ClientsTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.clientId,
-        referencedTable: $db.clients,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$ClientsTableAnnotationComposer(
-              $db: $db,
-              $table: $db.clients,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.clientId,
+      referencedTable: $db.clients,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ClientsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.clients,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 }
 
-class $$AppointmentsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $AppointmentsTable,
-    Appointment,
-    $$AppointmentsTableFilterComposer,
-    $$AppointmentsTableOrderingComposer,
-    $$AppointmentsTableAnnotationComposer,
-    $$AppointmentsTableCreateCompanionBuilder,
-    $$AppointmentsTableUpdateCompanionBuilder,
-    (Appointment, $$AppointmentsTableReferences),
-    Appointment,
-    PrefetchHooks Function({bool clientId})> {
+class $$AppointmentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AppointmentsTable,
+          Appointment,
+          $$AppointmentsTableFilterComposer,
+          $$AppointmentsTableOrderingComposer,
+          $$AppointmentsTableAnnotationComposer,
+          $$AppointmentsTableCreateCompanionBuilder,
+          $$AppointmentsTableUpdateCompanionBuilder,
+          (Appointment, $$AppointmentsTableReferences),
+          Appointment,
+          PrefetchHooks Function({bool clientId})
+        > {
   $$AppointmentsTableTableManager(_$AppDatabase db, $AppointmentsTable table)
-      : super(TableManagerState(
+    : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -1848,66 +2184,69 @@ class $$AppointmentsTableTableManager extends RootTableManager<
               $$AppointmentsTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$AppointmentsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<int> id = const Value.absent(),
-            Value<String?> googleCalendarEventId = const Value.absent(),
-            Value<int> clientId = const Value.absent(),
-            Value<String> title = const Value.absent(),
-            Value<String?> notes = const Value.absent(),
-            Value<DateTime> startTime = const Value.absent(),
-            Value<DateTime> endTime = const Value.absent(),
-            Value<bool> reminderSent = const Value.absent(),
-            Value<String> syncStatus = const Value.absent(),
-            Value<DateTime> lastModified = const Value.absent(),
-          }) =>
-              AppointmentsCompanion(
-            id: id,
-            googleCalendarEventId: googleCalendarEventId,
-            clientId: clientId,
-            title: title,
-            notes: notes,
-            startTime: startTime,
-            endTime: endTime,
-            reminderSent: reminderSent,
-            syncStatus: syncStatus,
-            lastModified: lastModified,
-          ),
-          createCompanionCallback: ({
-            Value<int> id = const Value.absent(),
-            Value<String?> googleCalendarEventId = const Value.absent(),
-            required int clientId,
-            required String title,
-            Value<String?> notes = const Value.absent(),
-            required DateTime startTime,
-            required DateTime endTime,
-            Value<bool> reminderSent = const Value.absent(),
-            Value<String> syncStatus = const Value.absent(),
-            required DateTime lastModified,
-          }) =>
-              AppointmentsCompanion.insert(
-            id: id,
-            googleCalendarEventId: googleCalendarEventId,
-            clientId: clientId,
-            title: title,
-            notes: notes,
-            startTime: startTime,
-            endTime: endTime,
-            reminderSent: reminderSent,
-            syncStatus: syncStatus,
-            lastModified: lastModified,
-          ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> googleCalendarEventId = const Value.absent(),
+                Value<int> clientId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime> startTime = const Value.absent(),
+                Value<DateTime> endTime = const Value.absent(),
+                Value<bool> reminderSent = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<DateTime> lastModified = const Value.absent(),
+              }) => AppointmentsCompanion(
+                id: id,
+                googleCalendarEventId: googleCalendarEventId,
+                clientId: clientId,
+                title: title,
+                notes: notes,
+                startTime: startTime,
+                endTime: endTime,
+                reminderSent: reminderSent,
+                syncStatus: syncStatus,
+                lastModified: lastModified,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> googleCalendarEventId = const Value.absent(),
+                required int clientId,
+                required String title,
+                Value<String?> notes = const Value.absent(),
+                required DateTime startTime,
+                required DateTime endTime,
+                Value<bool> reminderSent = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                required DateTime lastModified,
+              }) => AppointmentsCompanion.insert(
+                id: id,
+                googleCalendarEventId: googleCalendarEventId,
+                clientId: clientId,
+                title: title,
+                notes: notes,
+                startTime: startTime,
+                endTime: endTime,
+                reminderSent: reminderSent,
+                syncStatus: syncStatus,
+                lastModified: lastModified,
+              ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (
-                    e.readTable<$AppointmentsTable, Appointment>(table),
-                    $$AppointmentsTableReferences(db, table, e)
-                  ))
+              .map(
+                (e) => (
+                  e.readTable<$AppointmentsTable, Appointment>(table),
+                  $$AppointmentsTableReferences(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: ({clientId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
-              addJoins: <
-                  T extends TableManagerState<
+              addJoins:
+                  <
+                    T extends TableManagerState<
                       dynamic,
                       dynamic,
                       dynamic,
@@ -1918,52 +2257,58 @@ class $$AppointmentsTableTableManager extends RootTableManager<
                       dynamic,
                       dynamic,
                       dynamic,
-                      dynamic>>(state) {
-                if (clientId) {
-                  state = state.withJoin(
-                    currentTable: table,
-                    currentColumn: table.clientId,
-                    referencedTable:
-                        $$AppointmentsTableReferences._clientIdTable(db),
-                    referencedColumn:
-                        $$AppointmentsTableReferences._clientIdTable(db).id,
-                  ) as T;
-                }
+                      dynamic
+                    >
+                  >(state) {
+                    if (clientId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.clientId,
+                        referencedTable: $$AppointmentsTableReferences
+                            ._clientIdTable(db),
+                        referencedColumn: $$AppointmentsTableReferences
+                            ._clientIdTable(db)
+                            .id,
+                      ) as T;
+                    }
 
-                return state;
-              },
+                    return state;
+                  },
               getPrefetchedDataCallback: (items) async {
                 return [];
               },
             );
           },
-        ));
+        ),
+      );
 }
 
-typedef $$AppointmentsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $AppointmentsTable,
-    Appointment,
-    $$AppointmentsTableFilterComposer,
-    $$AppointmentsTableOrderingComposer,
-    $$AppointmentsTableAnnotationComposer,
-    $$AppointmentsTableCreateCompanionBuilder,
-    $$AppointmentsTableUpdateCompanionBuilder,
-    (Appointment, $$AppointmentsTableReferences),
-    Appointment,
-    PrefetchHooks Function({bool clientId})>;
-typedef $$SyncMetadataTableCreateCompanionBuilder = SyncMetadataCompanion
-    Function({
-  Value<int> id,
-  Value<String?> syncToken,
-  Value<DateTime?> lastSyncTimestamp,
-});
-typedef $$SyncMetadataTableUpdateCompanionBuilder = SyncMetadataCompanion
-    Function({
-  Value<int> id,
-  Value<String?> syncToken,
-  Value<DateTime?> lastSyncTimestamp,
-});
+typedef $$AppointmentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AppointmentsTable,
+      Appointment,
+      $$AppointmentsTableFilterComposer,
+      $$AppointmentsTableOrderingComposer,
+      $$AppointmentsTableAnnotationComposer,
+      $$AppointmentsTableCreateCompanionBuilder,
+      $$AppointmentsTableUpdateCompanionBuilder,
+      (Appointment, $$AppointmentsTableReferences),
+      Appointment,
+      PrefetchHooks Function({bool clientId})
+    >;
+typedef $$SyncMetadataTableCreateCompanionBuilder =
+    SyncMetadataCompanion Function({
+      Value<int> id,
+      Value<String?> syncToken,
+      Value<DateTime?> lastSyncTimestamp,
+    });
+typedef $$SyncMetadataTableUpdateCompanionBuilder =
+    SyncMetadataCompanion Function({
+      Value<int> id,
+      Value<String?> syncToken,
+      Value<DateTime?> lastSyncTimestamp,
+    });
 
 class $$SyncMetadataTableFilterComposer
     extends Composer<_$AppDatabase, $SyncMetadataTable> {
@@ -1975,14 +2320,19 @@ class $$SyncMetadataTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get syncToken => $composableBuilder(
-      column: $table.syncToken, builder: (column) => ColumnFilters(column));
+    column: $table.syncToken,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get lastSyncTimestamp => $composableBuilder(
-      column: $table.lastSyncTimestamp,
-      builder: (column) => ColumnFilters(column));
+    column: $table.lastSyncTimestamp,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$SyncMetadataTableOrderingComposer
@@ -1995,14 +2345,19 @@ class $$SyncMetadataTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get syncToken => $composableBuilder(
-      column: $table.syncToken, builder: (column) => ColumnOrderings(column));
+    column: $table.syncToken,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get lastSyncTimestamp => $composableBuilder(
-      column: $table.lastSyncTimestamp,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.lastSyncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SyncMetadataTableAnnotationComposer
@@ -2021,26 +2376,36 @@ class $$SyncMetadataTableAnnotationComposer
       $composableBuilder(column: $table.syncToken, builder: (column) => column);
 
   GeneratedColumn<DateTime> get lastSyncTimestamp => $composableBuilder(
-      column: $table.lastSyncTimestamp, builder: (column) => column);
+    column: $table.lastSyncTimestamp,
+    builder: (column) => column,
+  );
 }
 
-class $$SyncMetadataTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $SyncMetadataTable,
-    SyncMetadataRecord,
-    $$SyncMetadataTableFilterComposer,
-    $$SyncMetadataTableOrderingComposer,
-    $$SyncMetadataTableAnnotationComposer,
-    $$SyncMetadataTableCreateCompanionBuilder,
-    $$SyncMetadataTableUpdateCompanionBuilder,
-    (
-      SyncMetadataRecord,
-      BaseReferences<_$AppDatabase, $SyncMetadataTable, SyncMetadataRecord>
-    ),
-    SyncMetadataRecord,
-    PrefetchHooks Function()> {
+class $$SyncMetadataTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncMetadataTable,
+          SyncMetadataRecord,
+          $$SyncMetadataTableFilterComposer,
+          $$SyncMetadataTableOrderingComposer,
+          $$SyncMetadataTableAnnotationComposer,
+          $$SyncMetadataTableCreateCompanionBuilder,
+          $$SyncMetadataTableUpdateCompanionBuilder,
+          (
+            SyncMetadataRecord,
+            BaseReferences<
+              _$AppDatabase,
+              $SyncMetadataTable,
+              SyncMetadataRecord
+            >,
+          ),
+          SyncMetadataRecord,
+          PrefetchHooks Function()
+        > {
   $$SyncMetadataTableTableManager(_$AppDatabase db, $SyncMetadataTable table)
-      : super(TableManagerState(
+    : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -2049,68 +2414,76 @@ class $$SyncMetadataTableTableManager extends RootTableManager<
               $$SyncMetadataTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$SyncMetadataTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<int> id = const Value.absent(),
-            Value<String?> syncToken = const Value.absent(),
-            Value<DateTime?> lastSyncTimestamp = const Value.absent(),
-          }) =>
-              SyncMetadataCompanion(
-            id: id,
-            syncToken: syncToken,
-            lastSyncTimestamp: lastSyncTimestamp,
-          ),
-          createCompanionCallback: ({
-            Value<int> id = const Value.absent(),
-            Value<String?> syncToken = const Value.absent(),
-            Value<DateTime?> lastSyncTimestamp = const Value.absent(),
-          }) =>
-              SyncMetadataCompanion.insert(
-            id: id,
-            syncToken: syncToken,
-            lastSyncTimestamp: lastSyncTimestamp,
-          ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> syncToken = const Value.absent(),
+                Value<DateTime?> lastSyncTimestamp = const Value.absent(),
+              }) => SyncMetadataCompanion(
+                id: id,
+                syncToken: syncToken,
+                lastSyncTimestamp: lastSyncTimestamp,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> syncToken = const Value.absent(),
+                Value<DateTime?> lastSyncTimestamp = const Value.absent(),
+              }) => SyncMetadataCompanion.insert(
+                id: id,
+                syncToken: syncToken,
+                lastSyncTimestamp: lastSyncTimestamp,
+              ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (
-                    e.readTable<$SyncMetadataTable, SyncMetadataRecord>(table),
-                    BaseReferences<_$AppDatabase, $SyncMetadataTable,
-                        SyncMetadataRecord>(db, table, e)
-                  ))
+              .map(
+                (e) => (
+                  e.readTable<$SyncMetadataTable, SyncMetadataRecord>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SyncMetadataTable,
+                    SyncMetadataRecord
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
-        ));
+        ),
+      );
 }
 
-typedef $$SyncMetadataTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $SyncMetadataTable,
-    SyncMetadataRecord,
-    $$SyncMetadataTableFilterComposer,
-    $$SyncMetadataTableOrderingComposer,
-    $$SyncMetadataTableAnnotationComposer,
-    $$SyncMetadataTableCreateCompanionBuilder,
-    $$SyncMetadataTableUpdateCompanionBuilder,
-    (
+typedef $$SyncMetadataTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncMetadataTable,
       SyncMetadataRecord,
-      BaseReferences<_$AppDatabase, $SyncMetadataTable, SyncMetadataRecord>
-    ),
-    SyncMetadataRecord,
-    PrefetchHooks Function()>;
-typedef $$ReminderTemplatesTableCreateCompanionBuilder
-    = ReminderTemplatesCompanion Function({
-  required String id,
-  required String name,
-  required String body,
-  required DateTime updatedAt,
-  Value<int> rowid,
-});
-typedef $$ReminderTemplatesTableUpdateCompanionBuilder
-    = ReminderTemplatesCompanion Function({
-  Value<String> id,
-  Value<String> name,
-  Value<String> body,
-  Value<DateTime> updatedAt,
-  Value<int> rowid,
-});
+      $$SyncMetadataTableFilterComposer,
+      $$SyncMetadataTableOrderingComposer,
+      $$SyncMetadataTableAnnotationComposer,
+      $$SyncMetadataTableCreateCompanionBuilder,
+      $$SyncMetadataTableUpdateCompanionBuilder,
+      (
+        SyncMetadataRecord,
+        BaseReferences<_$AppDatabase, $SyncMetadataTable, SyncMetadataRecord>,
+      ),
+      SyncMetadataRecord,
+      PrefetchHooks Function()
+    >;
+typedef $$ReminderTemplatesTableCreateCompanionBuilder =
+    ReminderTemplatesCompanion Function({
+      required String id,
+      required String name,
+      required String body,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$ReminderTemplatesTableUpdateCompanionBuilder =
+    ReminderTemplatesCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> body,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
 
 class $$ReminderTemplatesTableFilterComposer
     extends Composer<_$AppDatabase, $ReminderTemplatesTable> {
@@ -2122,16 +2495,24 @@ class $$ReminderTemplatesTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get name => $composableBuilder(
-      column: $table.name, builder: (column) => ColumnFilters(column));
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get body => $composableBuilder(
-      column: $table.body, builder: (column) => ColumnFilters(column));
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$ReminderTemplatesTableOrderingComposer
@@ -2144,16 +2525,24 @@ class $$ReminderTemplatesTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get name => $composableBuilder(
-      column: $table.name, builder: (column) => ColumnOrderings(column));
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get body => $composableBuilder(
-      column: $table.body, builder: (column) => ColumnOrderings(column));
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ReminderTemplatesTableAnnotationComposer
@@ -2178,24 +2567,33 @@ class $$ReminderTemplatesTableAnnotationComposer
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
 
-class $$ReminderTemplatesTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $ReminderTemplatesTable,
-    ReminderTemplate,
-    $$ReminderTemplatesTableFilterComposer,
-    $$ReminderTemplatesTableOrderingComposer,
-    $$ReminderTemplatesTableAnnotationComposer,
-    $$ReminderTemplatesTableCreateCompanionBuilder,
-    $$ReminderTemplatesTableUpdateCompanionBuilder,
-    (
-      ReminderTemplate,
-      BaseReferences<_$AppDatabase, $ReminderTemplatesTable, ReminderTemplate>
-    ),
-    ReminderTemplate,
-    PrefetchHooks Function()> {
+class $$ReminderTemplatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReminderTemplatesTable,
+          ReminderTemplate,
+          $$ReminderTemplatesTableFilterComposer,
+          $$ReminderTemplatesTableOrderingComposer,
+          $$ReminderTemplatesTableAnnotationComposer,
+          $$ReminderTemplatesTableCreateCompanionBuilder,
+          $$ReminderTemplatesTableUpdateCompanionBuilder,
+          (
+            ReminderTemplate,
+            BaseReferences<
+              _$AppDatabase,
+              $ReminderTemplatesTable,
+              ReminderTemplate
+            >,
+          ),
+          ReminderTemplate,
+          PrefetchHooks Function()
+        > {
   $$ReminderTemplatesTableTableManager(
-      _$AppDatabase db, $ReminderTemplatesTable table)
-      : super(TableManagerState(
+    _$AppDatabase db,
+    $ReminderTemplatesTable table,
+  ) : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -2204,62 +2602,75 @@ class $$ReminderTemplatesTableTableManager extends RootTableManager<
               $$ReminderTemplatesTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$ReminderTemplatesTableAnnotationComposer(
-                  $db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> id = const Value.absent(),
-            Value<String> name = const Value.absent(),
-            Value<String> body = const Value.absent(),
-            Value<DateTime> updatedAt = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              ReminderTemplatesCompanion(
-            id: id,
-            name: name,
-            body: body,
-            updatedAt: updatedAt,
-            rowid: rowid,
-          ),
-          createCompanionCallback: ({
-            required String id,
-            required String name,
-            required String body,
-            required DateTime updatedAt,
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              ReminderTemplatesCompanion.insert(
-            id: id,
-            name: name,
-            body: body,
-            updatedAt: updatedAt,
-            rowid: rowid,
-          ),
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReminderTemplatesCompanion(
+                id: id,
+                name: name,
+                body: body,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required String body,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ReminderTemplatesCompanion.insert(
+                id: id,
+                name: name,
+                body: body,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (
-                    e.readTable<$ReminderTemplatesTable, ReminderTemplate>(
-                        table),
-                    BaseReferences<_$AppDatabase, $ReminderTemplatesTable,
-                        ReminderTemplate>(db, table, e)
-                  ))
+              .map(
+                (e) => (
+                  e.readTable<$ReminderTemplatesTable, ReminderTemplate>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ReminderTemplatesTable,
+                    ReminderTemplate
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
-        ));
+        ),
+      );
 }
 
-typedef $$ReminderTemplatesTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $ReminderTemplatesTable,
-    ReminderTemplate,
-    $$ReminderTemplatesTableFilterComposer,
-    $$ReminderTemplatesTableOrderingComposer,
-    $$ReminderTemplatesTableAnnotationComposer,
-    $$ReminderTemplatesTableCreateCompanionBuilder,
-    $$ReminderTemplatesTableUpdateCompanionBuilder,
-    (
+typedef $$ReminderTemplatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReminderTemplatesTable,
       ReminderTemplate,
-      BaseReferences<_$AppDatabase, $ReminderTemplatesTable, ReminderTemplate>
-    ),
-    ReminderTemplate,
-    PrefetchHooks Function()>;
+      $$ReminderTemplatesTableFilterComposer,
+      $$ReminderTemplatesTableOrderingComposer,
+      $$ReminderTemplatesTableAnnotationComposer,
+      $$ReminderTemplatesTableCreateCompanionBuilder,
+      $$ReminderTemplatesTableUpdateCompanionBuilder,
+      (
+        ReminderTemplate,
+        BaseReferences<
+          _$AppDatabase,
+          $ReminderTemplatesTable,
+          ReminderTemplate
+        >,
+      ),
+      ReminderTemplate,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;

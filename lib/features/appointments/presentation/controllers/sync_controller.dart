@@ -51,8 +51,9 @@ class SyncController extends Notifier<SyncUiState> {
     final connectivity = ref.watch(connectivityServiceProvider);
 
     _connectivitySubscription?.cancel();
-    _connectivitySubscription =
-        connectivity.onConnectivityChanged.listen((bool online) {
+    _connectivitySubscription = connectivity.onConnectivityChanged.listen((
+      bool online,
+    ) {
       final wasOffline = !state.isOnline;
       state = state.copyWith(isOnline: online);
       if (online && wasOffline) {
@@ -62,23 +63,20 @@ class SyncController extends Notifier<SyncUiState> {
       }
     });
 
-    ref.listen<AuthState>(
-      authControllerProvider,
-      (AuthState? previous, AuthState next) {
-        if (next.user != null && previous?.user?.id != next.user?.id) {
-          unawaited(syncNow(silent: true));
-        } else if (next.user == null && previous?.user != null) {
-          final repo = ref.read(appointmentsRepositoryProvider);
-          if (repo is AppointmentsRepositoryImpl) {
-            unawaited(repo.resetSyncMetadata());
-          }
-          state = state.copyWith(
-            clearLastSyncAt: true,
-            clearError: true,
-          );
+    ref.listen<AuthState>(authControllerProvider, (
+      AuthState? previous,
+      AuthState next,
+    ) {
+      if (next.user != null && previous?.user?.id != next.user?.id) {
+        unawaited(syncNow(silent: true));
+      } else if (next.user == null && previous?.user != null) {
+        final repo = ref.read(appointmentsRepositoryProvider);
+        if (repo is AppointmentsRepositoryImpl) {
+          unawaited(repo.resetSyncMetadata());
         }
-      },
-    );
+        state = state.copyWith(clearLastSyncAt: true, clearError: true);
+      }
+    });
 
     ref.onDispose(() => _connectivitySubscription?.cancel());
 
@@ -93,10 +91,7 @@ class SyncController extends Notifier<SyncUiState> {
     final connectivity = ref.read(connectivityServiceProvider);
     final online = await connectivity.isOnline;
     final lastSync = await _repository.getLastSyncTimestamp();
-    state = state.copyWith(
-      isOnline: online,
-      lastSyncAt: lastSync,
-    );
+    state = state.copyWith(isOnline: online, lastSyncAt: lastSync);
 
     if (online && ref.read(authControllerProvider).isSignedIn) {
       await syncNow(silent: true);
@@ -108,10 +103,7 @@ class SyncController extends Notifier<SyncUiState> {
       return state.lastResult ?? const SyncResult();
     }
 
-    state = state.copyWith(
-      isSyncing: true,
-      clearError: true,
-    );
+    state = state.copyWith(isSyncing: true, clearError: true);
 
     final result = await _repository.synchronize();
 

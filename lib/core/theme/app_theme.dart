@@ -1,14 +1,15 @@
 import 'package:animations/animations.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:dynamic_color/dynamic_color.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/theme/pixel_shapes.dart';
 
 /// Builds Nudge's Pixel Material 3 Expressive light and dark themes.
 abstract final class AppTheme {
-  static const Color fallbackSeedColor =
-      Color(AppConstants.fallbackSeedColorValue);
+  static const Color fallbackSeedColor = Color(
+    AppConstants.fallbackSeedColorValue,
+  );
 
   /// Resolves a harmonized [ColorScheme] using Monet dynamic colors when
   /// available, falling back to Pixel Blue (`#1A73E8`).
@@ -173,9 +174,7 @@ abstract final class AppTheme {
         contentTextStyle: textTheme.bodyMedium?.copyWith(
           color: colorScheme.onInverseSurface,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       dividerTheme: DividerThemeData(
         color: colorScheme.outlineVariant.withValues(alpha: 0.5),
@@ -232,12 +231,8 @@ abstract final class AppTheme {
         color: colorScheme.onSurfaceVariant,
         height: 1.35,
       ),
-      labelLarge: base.labelLarge?.copyWith(
-        fontWeight: FontWeight.w600,
-      ),
-      labelMedium: base.labelMedium?.copyWith(
-        fontWeight: FontWeight.w600,
-      ),
+      labelLarge: base.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+      labelMedium: base.labelMedium?.copyWith(fontWeight: FontWeight.w600),
     );
   }
 }

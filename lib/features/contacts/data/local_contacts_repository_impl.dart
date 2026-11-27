@@ -38,10 +38,8 @@ class LocalContactsRepositoryImpl implements ContactsRepository {
 
       final candidates = contact.phones
           .map(
-            (Phone phone) => PhoneCandidate(
-              number: phone.number,
-              label: phone.label,
-            ),
+            (Phone phone) =>
+                PhoneCandidate(number: phone.number, label: phone.label),
           )
           .toList(growable: false);
 

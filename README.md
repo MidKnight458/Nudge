@@ -31,7 +31,7 @@ lib/
 
 ## Requisitos y configuración
 
-1. **Flutter SDK** `>= 3.x` (Dart `>= 3.3.0 <4.0.0`).
+1. **Flutter SDK** `>= 3.47.0` (compatible con última `stable` y `material_ui`, Dart `>= 3.13.0 <4.0.0`).
 2. **Android:** `minSdk = 26`, permiso `READ_CONTACTS` y bloque `<queries>` en `android/app/src/main/AndroidManifest.xml` para `com.whatsapp`, `com.whatsapp.w4b` e intents `https`.
 3. **iOS:** `NSContactsUsageDescription` y `LSApplicationQueriesSchemes` (`whatsapp`, `https`) configurados en `ios/Runner/Info.plist`.
 4. **Google OAuth / Calendar API:** Habilitar **Google Calendar API** en Google Cloud Console y registrar el `applicationId` (`com.patoh.nudge`) con su huella SHA-1 para Android / Client ID de iOS antes de probar Sign-In en dispositivo físico.

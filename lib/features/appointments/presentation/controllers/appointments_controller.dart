@@ -12,18 +12,20 @@ import 'package:nudge/features/reminders/data/whatsapp_launcher_service.dart';
 
 final localAppointmentsDatasourceProvider =
     Provider<LocalAppointmentsDatasource>((Ref ref) {
-  final db = ref.watch(appDatabaseProvider);
-  return LocalAppointmentsDatasource(db);
-});
+      final db = ref.watch(appDatabaseProvider);
+      return LocalAppointmentsDatasource(db);
+    });
 
-final googleCalendarDatasourceProvider =
-    Provider<GoogleCalendarDatasource>((Ref ref) {
+final googleCalendarDatasourceProvider = Provider<GoogleCalendarDatasource>((
+  Ref ref,
+) {
   final authRepository = ref.watch(authRepositoryProvider);
   return GoogleCalendarDatasourceImpl(authRepository);
 });
 
-final appointmentsRepositoryProvider =
-    Provider<AppointmentsRepository>((Ref ref) {
+final appointmentsRepositoryProvider = Provider<AppointmentsRepository>((
+  Ref ref,
+) {
   return AppointmentsRepositoryImpl(
     localDatasource: ref.watch(localAppointmentsDatasourceProvider),
     remoteDatasource: ref.watch(googleCalendarDatasourceProvider),
@@ -38,16 +40,18 @@ final selectedDateProvider = StateProvider<DateTime>((Ref ref) {
 });
 
 /// Reactive list of appointments for [selectedDateProvider].
-final selectedDayAppointmentsProvider =
-    StreamProvider<List<AppointmentEntity>>((Ref ref) {
-  final selectedDate = ref.watch(selectedDateProvider);
-  final repository = ref.watch(appointmentsRepositoryProvider);
-  return repository.watchAppointmentsForDay(selectedDate);
-});
+final selectedDayAppointmentsProvider = StreamProvider<List<AppointmentEntity>>(
+  (Ref ref) {
+    final selectedDate = ref.watch(selectedDateProvider);
+    final repository = ref.watch(appointmentsRepositoryProvider);
+    return repository.watchAppointmentsForDay(selectedDate);
+  },
+);
 
 /// Reactive list of all appointments scheduled for tomorrow.
-final tomorrowAppointmentsProvider =
-    StreamProvider<List<AppointmentEntity>>((Ref ref) {
+final tomorrowAppointmentsProvider = StreamProvider<List<AppointmentEntity>>((
+  Ref ref,
+) {
   final repository = ref.watch(appointmentsRepositoryProvider);
   final range = DateFormatters.tomorrowRange();
   return repository.watchAppointmentsForRange(range.start, range.end);
@@ -109,11 +113,12 @@ class AppointmentsController extends Notifier<void> {
     required String templateBody,
     bool markSent = true,
   }) async {
-    final launched =
-        await ref.read(whatsappLauncherServiceProvider).sendAppointmentReminder(
-              appointment: appointment,
-              templateBody: templateBody,
-            );
+    final launched = await ref
+        .read(whatsappLauncherServiceProvider)
+        .sendAppointmentReminder(
+          appointment: appointment,
+          templateBody: templateBody,
+        );
     if (launched && markSent && !appointment.reminderSent) {
       await markReminderSent(appointment.id);
     }

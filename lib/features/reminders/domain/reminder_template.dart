@@ -9,12 +9,7 @@ abstract final class ReminderTemplateVariables {
   static const String hora = '{hora}';
   static const String servicio = '{servicio}';
 
-  static const List<String> all = <String>[
-    cliente,
-    fecha,
-    hora,
-    servicio,
-  ];
+  static const List<String> all = <String>[cliente, fecha, hora, servicio];
 }
 
 /// Domain model for an editable WhatsApp reminder template.

@@ -30,13 +30,17 @@ class ContactsState {
       return allContacts;
     }
     final digitsQuery = query.replaceAll(RegExp(r'[^0-9]'), '');
-    return allContacts.where((ContactEntity contact) {
-      final matchesName = contact.displayName.toLowerCase().contains(query);
-      final matchesRawPhone = contact.rawPhone.toLowerCase().contains(query);
-      final matchesDigits =
-          digitsQuery.isNotEmpty && contact.phoneE164.contains(digitsQuery);
-      return matchesName || matchesRawPhone || matchesDigits;
-    }).toList(growable: false);
+    return allContacts
+        .where((ContactEntity contact) {
+          final matchesName = contact.displayName.toLowerCase().contains(query);
+          final matchesRawPhone = contact.rawPhone.toLowerCase().contains(
+            query,
+          );
+          final matchesDigits =
+              digitsQuery.isNotEmpty && contact.phoneE164.contains(digitsQuery);
+          return matchesName || matchesRawPhone || matchesDigits;
+        })
+        .toList(growable: false);
   }
 
   ContactsState copyWith({
@@ -103,10 +107,7 @@ class ContactsController extends AutoDisposeNotifier<ContactsState> {
     if (permission == ContactsPermissionState.granted) {
       await loadContacts();
     } else {
-      state = state.copyWith(
-        permissionState: permission,
-        isLoading: false,
-      );
+      state = state.copyWith(permissionState: permission, isLoading: false);
     }
   }
 
@@ -117,5 +118,5 @@ class ContactsController extends AutoDisposeNotifier<ContactsState> {
 
 final contactsControllerProvider =
     AutoDisposeNotifierProvider<ContactsController, ContactsState>(
-  ContactsController.new,
-);
+      ContactsController.new,
+    );

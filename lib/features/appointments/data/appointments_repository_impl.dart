@@ -16,11 +16,11 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
     required ConnectivityService connectivityService,
     required AuthRepository authRepository,
     DateTime Function()? nowProvider,
-  })  : _local = localDatasource,
-        _remote = remoteDatasource,
-        _connectivity = connectivityService,
-        _auth = authRepository,
-        _now = nowProvider ?? DateTime.now;
+  }) : _local = localDatasource,
+       _remote = remoteDatasource,
+       _connectivity = connectivityService,
+       _auth = authRepository,
+       _now = nowProvider ?? DateTime.now;
 
   final LocalAppointmentsDatasource _local;
   final GoogleCalendarDatasource _remote;
@@ -120,8 +120,9 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
 
   @override
   Future<void> deleteAppointment(AppointmentEntity appointment) async {
-    final needsRemoteDelete =
-        await _local.markAppointmentDeletedOffline(appointment.id);
+    final needsRemoteDelete = await _local.markAppointmentDeletedOffline(
+      appointment.id,
+    );
     if (!needsRemoteDelete) {
       return;
     }

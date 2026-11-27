@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nudge/core/theme/pixel_shapes.dart';
 import 'package:nudge/core/utils/date_formatters.dart';
 
@@ -32,11 +32,8 @@ class DateSelectorStrip extends StatelessWidget {
     );
     final days = List<DateTime>.generate(
       7,
-      (int i) => DateTime(
-        windowStart.year,
-        windowStart.month,
-        windowStart.day + i,
-      ),
+      (int i) =>
+          DateTime(windowStart.year, windowStart.month, windowStart.day + i),
       growable: false,
     );
 
@@ -91,8 +88,8 @@ class DateSelectorStrip extends StatelessWidget {
               final backgroundColor = isSelected
                   ? colorScheme.primaryContainer
                   : (isToday
-                      ? colorScheme.surfaceContainerHigh
-                      : colorScheme.surfaceContainerLow);
+                        ? colorScheme.surfaceContainerHigh
+                        : colorScheme.surfaceContainerLow);
               final foregroundColor = isSelected
                   ? colorScheme.onPrimaryContainer
                   : (isToday ? colorScheme.primary : colorScheme.onSurface);
@@ -146,8 +143,8 @@ class DateSelectorStrip extends StatelessWidget {
                             shape: BoxShape.circle,
                             color: hasEvents
                                 ? (isSelected
-                                    ? colorScheme.primary
-                                    : colorScheme.tertiary)
+                                      ? colorScheme.primary
+                                      : colorScheme.tertiary)
                                 : Colors.transparent,
                           ),
                         ),

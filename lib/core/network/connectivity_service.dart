@@ -11,7 +11,7 @@ abstract interface class ConnectivityService {
 /// Default [ConnectivityService] backed by `connectivity_plus`.
 class ConnectivityServiceImpl implements ConnectivityService {
   ConnectivityServiceImpl({Connectivity? connectivity})
-      : _connectivity = connectivity ?? Connectivity();
+    : _connectivity = connectivity ?? Connectivity();
 
   final Connectivity _connectivity;
 

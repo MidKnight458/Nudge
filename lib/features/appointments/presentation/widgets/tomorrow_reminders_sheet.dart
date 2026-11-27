@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/theme/pixel_shapes.dart';
 import 'package:nudge/core/utils/date_formatters.dart';
@@ -116,8 +116,9 @@ class TomorrowRemindersSheet extends ConsumerWidget {
                     );
                   }
 
-                  final sentCount =
-                      appointments.where((a) => a.reminderSent).length;
+                  final sentCount = appointments
+                      .where((a) => a.reminderSent)
+                      .length;
                   final total = appointments.length;
                   final progress = total == 0 ? 0.0 : sentCount / total;
 
@@ -235,9 +236,7 @@ class _TomorrowReminderItem extends StatelessWidget {
               foregroundColor: sent
                   ? colorScheme.onTertiaryContainer
                   : colorScheme.onPrimaryContainer,
-              child: Icon(
-                sent ? Icons.check_rounded : Icons.schedule_rounded,
-              ),
+              child: Icon(sent ? Icons.check_rounded : Icons.schedule_rounded),
             ),
             const SizedBox(width: 12),
             Expanded(

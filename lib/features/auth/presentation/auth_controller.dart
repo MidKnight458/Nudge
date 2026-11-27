@@ -10,11 +10,7 @@ final authRepositoryProvider = Provider<AuthRepository>((Ref ref) {
 
 /// UI state for Google authentication.
 class AuthState {
-  const AuthState({
-    this.user,
-    this.isLoading = false,
-    this.errorMessage,
-  });
+  const AuthState({this.user, this.isLoading = false, this.errorMessage});
 
   final AuthUser? user;
   final bool isLoading;

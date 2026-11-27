@@ -5,10 +5,7 @@ import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
 /// Candidate phone entry extracted from a device contact.
 class PhoneCandidate {
-  const PhoneCandidate({
-    required this.number,
-    required this.label,
-  });
+  const PhoneCandidate({required this.number, required this.label});
 
   final String number;
   final PhoneLabel label;
@@ -58,10 +55,7 @@ abstract final class PhoneSanitizer {
 
     final resolvedCountry = callerCountry ?? deviceCallerCountry();
     try {
-      final parsed = PhoneNumber.parse(
-        trimmed,
-        callerCountry: resolvedCountry,
-      );
+      final parsed = PhoneNumber.parse(trimmed, callerCountry: resolvedCountry);
       if (!parsed.isValid() && !parsed.isValidLength()) {
         return null;
       }
@@ -76,10 +70,7 @@ abstract final class PhoneSanitizer {
   }
 
   /// Formats an E.164 digit string or raw phone for readable UI presentation.
-  static String formatForDisplay(
-    String rawOrE164, {
-    IsoCode? callerCountry,
-  }) {
+  static String formatForDisplay(String rawOrE164, {IsoCode? callerCountry}) {
     final trimmed = rawOrE164.trim();
     if (trimmed.isEmpty) {
       return '';
@@ -87,8 +78,8 @@ abstract final class PhoneSanitizer {
 
     final candidate =
         trimmed.startsWith('+') || RegExp(r'[^0-9]').hasMatch(trimmed)
-            ? trimmed
-            : '+$trimmed';
+        ? trimmed
+        : '+$trimmed';
 
     try {
       final parsed = PhoneNumber.parse(

@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/theme/pixel_shapes.dart';
 import 'package:nudge/features/reminders/data/whatsapp_launcher_service.dart';
@@ -23,9 +23,7 @@ class TemplateEditorSheet extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => TemplateEditorSheet(
-        initialTemplateId: initialTemplateId,
-      ),
+      builder: (_) => TemplateEditorSheet(initialTemplateId: initialTemplateId),
     );
   }
 
@@ -59,8 +57,9 @@ class _TemplateEditorSheetState extends ConsumerState<TemplateEditorSheet> {
     if (_initializedFromTemplates) {
       return;
     }
-    final match =
-        templates.where((t) => t.id == _selectedTemplateId).firstOrNull;
+    final match = templates
+        .where((t) => t.id == _selectedTemplateId)
+        .firstOrNull;
     if (match != null) {
       _controller.text = match.body;
       _initializedFromTemplates = true;
@@ -106,8 +105,9 @@ class _TemplateEditorSheetState extends ConsumerState<TemplateEditorSheet> {
   Future<void> _restoreDefault() async {
     HapticFeedback.lightImpact();
     setState(() {
-      _controller.text =
-          ReminderTemplateEngine.defaultBodyFor(_selectedTemplateId);
+      _controller.text = ReminderTemplateEngine.defaultBodyFor(
+        _selectedTemplateId,
+      );
     });
   }
 
@@ -122,10 +122,9 @@ class _TemplateEditorSheetState extends ConsumerState<TemplateEditorSheet> {
 
     setState(() => _isSaving = true);
     try {
-      await ref.read(reminderTemplatesRepositoryProvider).saveTemplate(
-            templateId: _selectedTemplateId,
-            body: text,
-          );
+      await ref
+          .read(reminderTemplatesRepositoryProvider)
+          .saveTemplate(templateId: _selectedTemplateId, body: text);
       await HapticFeedback.lightImpact();
       if (mounted) {
         Navigator.of(context).pop();
@@ -166,10 +165,7 @@ class _TemplateEditorSheetState extends ConsumerState<TemplateEditorSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Plantillas de WhatsApp',
-              style: theme.textTheme.titleLarge,
-            ),
+            Text('Plantillas de WhatsApp', style: theme.textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(
               'Personaliza los mensajes rápidos sin usar APIs de pago.',
@@ -200,13 +196,15 @@ class _TemplateEditorSheetState extends ConsumerState<TemplateEditorSheet> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: ReminderTemplateVariables.all.map((String variable) {
-                return ActionChip(
-                  avatar: const Icon(Icons.add_rounded, size: 16),
-                  label: Text(variable),
-                  onPressed: () => _insertPlaceholder(variable),
-                );
-              }).toList(growable: false),
+              children: ReminderTemplateVariables.all
+                  .map((String variable) {
+                    return ActionChip(
+                      avatar: const Icon(Icons.add_rounded, size: 16),
+                      label: Text(variable),
+                      onPressed: () => _insertPlaceholder(variable),
+                    );
+                  })
+                  .toList(growable: false),
             ),
             const SizedBox(height: 14),
             TextField(

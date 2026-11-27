@@ -57,9 +57,7 @@ class ReminderTemplates extends Table {
 }
 
 /// Application Drift database with offline-first persistence.
-@DriftDatabase(
-  tables: [Clients, Appointments, SyncMetadata, ReminderTemplates],
-)
+@DriftDatabase(tables: [Clients, Appointments, SyncMetadata, ReminderTemplates])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
@@ -68,14 +66,14 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (Migrator m) async {
-          await m.createAll();
-        },
-        beforeOpen: (OpeningDetails details) async {
-          await customStatement('PRAGMA foreign_keys = ON');
-          await _seedDefaults();
-        },
-      );
+    onCreate: (Migrator m) async {
+      await m.createAll();
+    },
+    beforeOpen: (OpeningDetails details) async {
+      await customStatement('PRAGMA foreign_keys = ON');
+      await _seedDefaults();
+    },
+  );
 
   Future<void> _seedDefaults() async {
     await into(syncMetadata).insert(
@@ -85,24 +83,20 @@ class AppDatabase extends _$AppDatabase {
 
     final now = DateTime.now().toUtc();
     await batch((Batch batch) {
-      batch.insertAll(
-        reminderTemplates,
-        [
-          ReminderTemplatesCompanion.insert(
-            id: AppConstants.tomorrowTemplateId,
-            name: AppConstants.tomorrowTemplateName,
-            body: AppConstants.defaultTomorrowReminderBody,
-            updatedAt: now,
-          ),
-          ReminderTemplatesCompanion.insert(
-            id: AppConstants.confirmationTemplateId,
-            name: AppConstants.confirmationTemplateName,
-            body: AppConstants.defaultConfirmationBody,
-            updatedAt: now,
-          ),
-        ],
-        mode: InsertMode.insertOrIgnore,
-      );
+      batch.insertAll(reminderTemplates, [
+        ReminderTemplatesCompanion.insert(
+          id: AppConstants.tomorrowTemplateId,
+          name: AppConstants.tomorrowTemplateName,
+          body: AppConstants.defaultTomorrowReminderBody,
+          updatedAt: now,
+        ),
+        ReminderTemplatesCompanion.insert(
+          id: AppConstants.confirmationTemplateId,
+          name: AppConstants.confirmationTemplateName,
+          body: AppConstants.defaultConfirmationBody,
+          updatedAt: now,
+        ),
+      ], mode: InsertMode.insertOrIgnore);
     });
   }
 }

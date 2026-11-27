@@ -27,8 +27,8 @@ class ContactEntity {
         return a.isGoogleAccount ? -1 : 1;
       }
       final nameCompare = a.displayName.toLowerCase().compareTo(
-            b.displayName.toLowerCase(),
-          );
+        b.displayName.toLowerCase(),
+      );
       if (nameCompare != 0) {
         return nameCompare;
       }
@@ -51,11 +51,11 @@ class ContactEntity {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        displayName,
-        rawPhone,
-        phoneE164,
-        isGoogleAccount,
-        accountName,
-      );
+    id,
+    displayName,
+    rawPhone,
+    phoneE164,
+    isGoogleAccount,
+    accountName,
+  );
 }

@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nudge/core/theme/pixel_shapes.dart';
 import 'package:nudge/core/utils/date_formatters.dart';
 import 'package:nudge/core/utils/phone_sanitizer.dart';
@@ -136,7 +136,7 @@ class AppointmentCard extends StatelessWidget {
                           child: Text(
                             hasPhone
                                 ? '${appointment.clientName} · '
-                                    '${PhoneSanitizer.formatForDisplay(appointment.clientPhoneE164)}'
+                                      '${PhoneSanitizer.formatForDisplay(appointment.clientPhoneE164)}'
                                 : '${appointment.clientName} · Sin teléfono',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,

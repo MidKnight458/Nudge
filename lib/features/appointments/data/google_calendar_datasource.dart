@@ -42,10 +42,7 @@ class CalendarRemoteEvent {
 
 /// Aggregated result of listing all pages of a Google Calendar delta query.
 class CalendarDeltaPage {
-  const CalendarDeltaPage({
-    required this.events,
-    this.nextSyncToken,
-  });
+  const CalendarDeltaPage({required this.events, this.nextSyncToken});
 
   final List<CalendarRemoteEvent> events;
   final String? nextSyncToken;
@@ -160,10 +157,7 @@ class GoogleCalendarDatasourceImpl implements GoogleCalendarDatasource {
         rethrow;
       }
 
-      return CalendarDeltaPage(
-        events: collected,
-        nextSyncToken: nextSyncToken,
-      );
+      return CalendarDeltaPage(events: collected, nextSyncToken: nextSyncToken);
     });
   }
 
@@ -196,12 +190,8 @@ class GoogleCalendarDatasourceImpl implements GoogleCalendarDatasource {
     return calendar.Event(
       summary: summary,
       description: description,
-      start: calendar.EventDateTime(
-        dateTime: appointment.startTime.toUtc(),
-      ),
-      end: calendar.EventDateTime(
-        dateTime: appointment.endTime.toUtc(),
-      ),
+      start: calendar.EventDateTime(dateTime: appointment.startTime.toUtc()),
+      end: calendar.EventDateTime(dateTime: appointment.endTime.toUtc()),
     );
   }
 
@@ -213,10 +203,7 @@ class GoogleCalendarDatasourceImpl implements GoogleCalendarDatasource {
 
     final status = event.status ?? 'confirmed';
     if (status == 'cancelled') {
-      return CalendarRemoteEvent(
-        id: id,
-        status: status,
-      );
+      return CalendarRemoteEvent(id: id, status: status);
     }
 
     final start = event.start?.dateTime ?? event.start?.date;

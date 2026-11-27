@@ -30,10 +30,7 @@ class AuthUser {
 
 /// Scoped handle to an authenticated Google Calendar API client.
 class AuthenticatedCalendarClient {
-  const AuthenticatedCalendarClient({
-    required this.api,
-    required this.close,
-  });
+  const AuthenticatedCalendarClient({required this.api, required this.close});
 
   final calendar.CalendarApi api;
   final void Function() close;

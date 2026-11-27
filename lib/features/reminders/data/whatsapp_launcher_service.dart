@@ -14,22 +14,20 @@ class ReminderTemplatesRepository {
 
   Stream<List<ReminderTemplateEntity>> watchTemplates() {
     final query = _db.select(_db.reminderTemplates)
-      ..orderBy([
-        (t) => OrderingTerm.desc(t.id),
-      ]);
+      ..orderBy([(t) => OrderingTerm.desc(t.id)]);
 
     return query.watch().map(
-          (List<ReminderTemplate> rows) => rows
-              .map(
-                (ReminderTemplate row) => ReminderTemplateEntity(
-                  id: row.id,
-                  name: row.name,
-                  body: row.body,
-                  updatedAt: row.updatedAt.toLocal(),
-                ),
-              )
-              .toList(growable: false),
-        );
+      (List<ReminderTemplate> rows) => rows
+          .map(
+            (ReminderTemplate row) => ReminderTemplateEntity(
+              id: row.id,
+              name: row.name,
+              body: row.body,
+              updatedAt: row.updatedAt.toLocal(),
+            ),
+          )
+          .toList(growable: false),
+    );
   }
 
   Future<void> saveTemplate({
@@ -41,9 +39,9 @@ class ReminderTemplatesRepository {
       throw ArgumentError('La plantilla no puede quedar vacía.');
     }
 
-    await (_db.update(_db.reminderTemplates)
-          ..where((t) => t.id.equals(templateId)))
-        .write(
+    await (_db.update(
+      _db.reminderTemplates,
+    )..where((t) => t.id.equals(templateId))).write(
       ReminderTemplatesCompanion(
         body: Value(trimmed),
         updatedAt: Value(DateTime.now().toUtc()),
@@ -109,11 +107,12 @@ class WhatsAppLauncherService {
 
 final reminderTemplatesRepositoryProvider =
     Provider<ReminderTemplatesRepository>((Ref ref) {
-  return ReminderTemplatesRepository(ref.watch(appDatabaseProvider));
-});
+      return ReminderTemplatesRepository(ref.watch(appDatabaseProvider));
+    });
 
-final reminderTemplatesProvider =
-    StreamProvider<List<ReminderTemplateEntity>>((Ref ref) {
+final reminderTemplatesProvider = StreamProvider<List<ReminderTemplateEntity>>((
+  Ref ref,
+) {
   return ref.watch(reminderTemplatesRepositoryProvider).watchTemplates();
 });
 

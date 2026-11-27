@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Material 3 Expressive geometry tokens modeled after Google Pixel UI.
 abstract final class PixelShapes {
@@ -10,21 +10,27 @@ abstract final class PixelShapes {
   static const double chipRadius = 14.0;
   static const double pillRadius = 999.0;
 
-  static const BorderRadius cardBorderRadius =
-      BorderRadius.all(Radius.circular(cardRadius));
+  static const BorderRadius cardBorderRadius = BorderRadius.all(
+    Radius.circular(cardRadius),
+  );
   static const BorderRadius bottomSheetBorderRadius = BorderRadius.vertical(
     top: Radius.circular(bottomSheetRadius),
   );
-  static const BorderRadius dialogBorderRadius =
-      BorderRadius.all(Radius.circular(dialogRadius));
-  static const BorderRadius inputBorderRadius =
-      BorderRadius.all(Radius.circular(inputRadius));
-  static const BorderRadius fabBorderRadius =
-      BorderRadius.all(Radius.circular(fabRadius));
-  static const BorderRadius chipBorderRadius =
-      BorderRadius.all(Radius.circular(chipRadius));
-  static const BorderRadius pillBorderRadius =
-      BorderRadius.all(Radius.circular(pillRadius));
+  static const BorderRadius dialogBorderRadius = BorderRadius.all(
+    Radius.circular(dialogRadius),
+  );
+  static const BorderRadius inputBorderRadius = BorderRadius.all(
+    Radius.circular(inputRadius),
+  );
+  static const BorderRadius fabBorderRadius = BorderRadius.all(
+    Radius.circular(fabRadius),
+  );
+  static const BorderRadius chipBorderRadius = BorderRadius.all(
+    Radius.circular(chipRadius),
+  );
+  static const BorderRadius pillBorderRadius = BorderRadius.all(
+    Radius.circular(pillRadius),
+  );
 
   static const RoundedRectangleBorder cardShape = RoundedRectangleBorder(
     borderRadius: cardBorderRadius,

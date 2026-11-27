@@ -69,10 +69,8 @@ class _FakeGoogleCalendarDatasource implements GoogleCalendarDatasource {
   final List<AppointmentEntity> insertedEvents = <AppointmentEntity>[];
   final List<AppointmentEntity> patchedEvents = <AppointmentEntity>[];
 
-  Future<CalendarDeltaPage> Function({
-    String? syncToken,
-    DateTime? timeMin,
-  })? onListEventsDelta;
+  Future<CalendarDeltaPage> Function({String? syncToken, DateTime? timeMin})?
+  onListEventsDelta;
 
   @override
   Future<String> insertEvent(AppointmentEntity appointment) async {
@@ -144,18 +142,20 @@ void main() {
       expect(decoded.notes, 'Traer estudios previos');
     });
 
-    test('gracefully decodes events created directly on Google Calendar web',
-        () {
-      final decoded = CalendarEventMetadataCodec.decodeEvent(
-        summary: 'Reunión externa',
-        description: 'Sala 3, edificio central',
-      );
+    test(
+      'gracefully decodes events created directly on Google Calendar web',
+      () {
+        final decoded = CalendarEventMetadataCodec.decodeEvent(
+          summary: 'Reunión externa',
+          description: 'Sala 3, edificio central',
+        );
 
-      expect(decoded.title, 'Reunión externa');
-      expect(decoded.clientName, 'Google Calendar');
-      expect(decoded.clientPhoneE164, '');
-      expect(decoded.notes, 'Sala 3, edificio central');
-    });
+        expect(decoded.title, 'Reunión externa');
+        expect(decoded.clientName, 'Google Calendar');
+        expect(decoded.clientPhoneE164, '');
+        expect(decoded.notes, 'Sala 3, edificio central');
+      },
+    );
   });
 
   group('AppointmentsRepositoryImpl offline-first & delta sync', () {
@@ -195,155 +195,161 @@ void main() {
       await db.close();
     });
 
-    test('queues offline create, update, and delete then syncs when online',
-        () async {
-      final day = DateTime(2026, 11, 28);
-      final input = AppointmentInput(
-        clientName: 'Ana López',
-        clientRawPhone: '461 123 4567',
-        clientPhoneE164: '524611234567',
-        clientGoogleContactId: 'g-1',
-        title: 'Diseño de cejas',
-        notes: 'Primera visita',
-        startTime: DateTime(2026, 11, 28, 10, 0),
-        endTime: DateTime(2026, 11, 28, 11, 0),
-      );
-
-      // 1. Create offline -> pending_create
-      final created = await repository.createAppointment(input);
-      expect(created.syncStatus, AppointmentSyncStatus.pendingCreate);
-      expect(created.googleCalendarEventId, isNull);
-      expect(remote.insertCount, 0);
-
-      // 2. Reconnect and sync -> pushed to remote and marked synced
-      connectivity.online = true;
-      final firstSync = await repository.synchronize();
-      expect(firstSync.pushedCreated, 1);
-      expect(remote.insertCount, 1);
-
-      var dayItems = await repository.watchAppointmentsForDay(day).first;
-      expect(dayItems, hasLength(1));
-      expect(dayItems.first.syncStatus, AppointmentSyncStatus.synced);
-      expect(dayItems.first.googleCalendarEventId, 'remote-evt-1');
-
-      // 3. Go offline and update -> pending_update, then sync -> patchEvent
-      connectivity.online = false;
-      final updated = await repository.updateAppointment(
-        dayItems.first,
-        AppointmentInput(
+    test(
+      'queues offline create, update, and delete then syncs when online',
+      () async {
+        final day = DateTime(2026, 11, 28);
+        final input = AppointmentInput(
           clientName: 'Ana López',
           clientRawPhone: '461 123 4567',
           clientPhoneE164: '524611234567',
           clientGoogleContactId: 'g-1',
-          title: 'Diseño de cejas VIP',
-          notes: 'Confirmado',
-          startTime: DateTime(2026, 11, 28, 10, 30),
-          endTime: DateTime(2026, 11, 28, 11, 30),
-        ),
-      );
-      expect(updated.syncStatus, AppointmentSyncStatus.pendingUpdate);
-
-      connectivity.online = true;
-      final secondSync = await repository.synchronize();
-      expect(secondSync.pushedUpdated, 1);
-      expect(remote.patchCount, 1);
-
-      // 4. Go offline and delete -> hidden locally, pending_delete -> purged on sync
-      connectivity.online = false;
-      final syncedItem =
-          (await repository.watchAppointmentsForDay(day).first).single;
-      await repository.deleteAppointment(syncedItem);
-
-      dayItems = await repository.watchAppointmentsForDay(day).first;
-      expect(dayItems, isEmpty);
-      expect(await repository.watchPendingSyncCount().first, 1);
-
-      connectivity.online = true;
-      final thirdSync = await repository.synchronize();
-      expect(thirdSync.pushedDeleted, 1);
-      expect(remote.deletedRemoteIds, <String>['remote-evt-1']);
-      expect(await repository.watchPendingSyncCount().first, 0);
-    });
-
-    test('applies remote delta events and recovers from HTTP 410 Gone',
-        () async {
-      connectivity.online = true;
-      await local.saveSyncMetadata(
-        syncToken: 'expired-token',
-        lastSyncTimestamp: fixedNow.subtract(const Duration(days: 1)),
-      );
-
-      var callIndex = 0;
-      remote.onListEventsDelta =
-          ({String? syncToken, DateTime? timeMin}) async {
-        callIndex++;
-        if (callIndex == 1) {
-          expect(syncToken, 'expired-token');
-          expect(timeMin, isNull);
-          throw const SyncTokenExpiredException();
-        }
-        expect(syncToken, isNull);
-        expect(timeMin, isNotNull);
-        return CalendarDeltaPage(
-          nextSyncToken: 'fresh-sync-token',
-          events: <CalendarRemoteEvent>[
-            CalendarRemoteEvent(
-              id: 'cal-100',
-              status: 'confirmed',
-              summary: CalendarEventMetadataCodec.buildEventSummary(
-                title: 'Consulta médica',
-                clientName: 'Diego Soto',
-              ),
-              description: CalendarEventMetadataCodec.encodeDescription(
-                clientName: 'Diego Soto',
-                clientPhoneE164: '524615551234',
-                title: 'Consulta médica',
-                notes: 'Ayuno de 8h',
-              ),
-              startTime: DateTime(2026, 11, 29, 9, 0),
-              endTime: DateTime(2026, 11, 29, 10, 0),
-            ),
-          ],
+          title: 'Diseño de cejas',
+          notes: 'Primera visita',
+          startTime: DateTime(2026, 11, 28, 10, 0),
+          endTime: DateTime(2026, 11, 28, 11, 0),
         );
-      };
 
-      final result = await repository.synchronize();
-      expect(result.usedFullResync, isTrue);
-      expect(result.pulledUpserted, 1);
-      expect(remote.listDeltaCalls, 2);
+        // 1. Create offline -> pending_create
+        final created = await repository.createAppointment(input);
+        expect(created.syncStatus, AppointmentSyncStatus.pendingCreate);
+        expect(created.googleCalendarEventId, isNull);
+        expect(remote.insertCount, 0);
 
-      final metadata = await local.getSyncMetadata();
-      expect(metadata.syncToken, 'fresh-sync-token');
+        // 2. Reconnect and sync -> pushed to remote and marked synced
+        connectivity.online = true;
+        final firstSync = await repository.synchronize();
+        expect(firstSync.pushedCreated, 1);
+        expect(remote.insertCount, 1);
 
-      final imported = await repository
-          .watchAppointmentsForDay(DateTime(2026, 11, 29))
-          .first;
-      expect(imported, hasLength(1));
-      expect(imported.first.clientName, 'Diego Soto');
-      expect(imported.first.clientPhoneE164, '524615551234');
-      expect(imported.first.title, 'Consulta médica');
-      expect(imported.first.notes, 'Ayuno de 8h');
+        var dayItems = await repository.watchAppointmentsForDay(day).first;
+        expect(dayItems, hasLength(1));
+        expect(dayItems.first.syncStatus, AppointmentSyncStatus.synced);
+        expect(dayItems.first.googleCalendarEventId, 'remote-evt-1');
 
-      // Subsequent delta sync uses fresh token and deletes cancelled events.
-      remote.onListEventsDelta =
-          ({String? syncToken, DateTime? timeMin}) async {
-        expect(syncToken, 'fresh-sync-token');
-        return const CalendarDeltaPage(
-          nextSyncToken: 'fresh-sync-token-2',
-          events: <CalendarRemoteEvent>[
-            CalendarRemoteEvent(id: 'cal-100', status: 'cancelled'),
-          ],
+        // 3. Go offline and update -> pending_update, then sync -> patchEvent
+        connectivity.online = false;
+        final updated = await repository.updateAppointment(
+          dayItems.first,
+          AppointmentInput(
+            clientName: 'Ana López',
+            clientRawPhone: '461 123 4567',
+            clientPhoneE164: '524611234567',
+            clientGoogleContactId: 'g-1',
+            title: 'Diseño de cejas VIP',
+            notes: 'Confirmado',
+            startTime: DateTime(2026, 11, 28, 10, 30),
+            endTime: DateTime(2026, 11, 28, 11, 30),
+          ),
         );
-      };
+        expect(updated.syncStatus, AppointmentSyncStatus.pendingUpdate);
 
-      final deltaResult = await repository.synchronize();
-      expect(deltaResult.usedFullResync, isFalse);
-      expect(deltaResult.pulledDeleted, 1);
-      expect(
-        await repository.watchAppointmentsForDay(DateTime(2026, 11, 29)).first,
-        isEmpty,
-      );
-    });
+        connectivity.online = true;
+        final secondSync = await repository.synchronize();
+        expect(secondSync.pushedUpdated, 1);
+        expect(remote.patchCount, 1);
+
+        // 4. Go offline and delete -> hidden locally, pending_delete -> purged on sync
+        connectivity.online = false;
+        final syncedItem =
+            (await repository.watchAppointmentsForDay(day).first).single;
+        await repository.deleteAppointment(syncedItem);
+
+        dayItems = await repository.watchAppointmentsForDay(day).first;
+        expect(dayItems, isEmpty);
+        expect(await repository.watchPendingSyncCount().first, 1);
+
+        connectivity.online = true;
+        final thirdSync = await repository.synchronize();
+        expect(thirdSync.pushedDeleted, 1);
+        expect(remote.deletedRemoteIds, <String>['remote-evt-1']);
+        expect(await repository.watchPendingSyncCount().first, 0);
+      },
+    );
+
+    test(
+      'applies remote delta events and recovers from HTTP 410 Gone',
+      () async {
+        connectivity.online = true;
+        await local.saveSyncMetadata(
+          syncToken: 'expired-token',
+          lastSyncTimestamp: fixedNow.subtract(const Duration(days: 1)),
+        );
+
+        var callIndex = 0;
+        remote.onListEventsDelta =
+            ({String? syncToken, DateTime? timeMin}) async {
+              callIndex++;
+              if (callIndex == 1) {
+                expect(syncToken, 'expired-token');
+                expect(timeMin, isNull);
+                throw const SyncTokenExpiredException();
+              }
+              expect(syncToken, isNull);
+              expect(timeMin, isNotNull);
+              return CalendarDeltaPage(
+                nextSyncToken: 'fresh-sync-token',
+                events: <CalendarRemoteEvent>[
+                  CalendarRemoteEvent(
+                    id: 'cal-100',
+                    status: 'confirmed',
+                    summary: CalendarEventMetadataCodec.buildEventSummary(
+                      title: 'Consulta médica',
+                      clientName: 'Diego Soto',
+                    ),
+                    description: CalendarEventMetadataCodec.encodeDescription(
+                      clientName: 'Diego Soto',
+                      clientPhoneE164: '524615551234',
+                      title: 'Consulta médica',
+                      notes: 'Ayuno de 8h',
+                    ),
+                    startTime: DateTime(2026, 11, 29, 9, 0),
+                    endTime: DateTime(2026, 11, 29, 10, 0),
+                  ),
+                ],
+              );
+            };
+
+        final result = await repository.synchronize();
+        expect(result.usedFullResync, isTrue);
+        expect(result.pulledUpserted, 1);
+        expect(remote.listDeltaCalls, 2);
+
+        final metadata = await local.getSyncMetadata();
+        expect(metadata.syncToken, 'fresh-sync-token');
+
+        final imported = await repository
+            .watchAppointmentsForDay(DateTime(2026, 11, 29))
+            .first;
+        expect(imported, hasLength(1));
+        expect(imported.first.clientName, 'Diego Soto');
+        expect(imported.first.clientPhoneE164, '524615551234');
+        expect(imported.first.title, 'Consulta médica');
+        expect(imported.first.notes, 'Ayuno de 8h');
+
+        // Subsequent delta sync uses fresh token and deletes cancelled events.
+        remote.onListEventsDelta =
+            ({String? syncToken, DateTime? timeMin}) async {
+              expect(syncToken, 'fresh-sync-token');
+              return const CalendarDeltaPage(
+                nextSyncToken: 'fresh-sync-token-2',
+                events: <CalendarRemoteEvent>[
+                  CalendarRemoteEvent(id: 'cal-100', status: 'cancelled'),
+                ],
+              );
+            };
+
+        final deltaResult = await repository.synchronize();
+        expect(deltaResult.usedFullResync, isFalse);
+        expect(deltaResult.pulledDeleted, 1);
+        expect(
+          await repository
+              .watchAppointmentsForDay(DateTime(2026, 11, 29))
+              .first,
+          isEmpty,
+        );
+      },
+    );
 
     test('marks reminderSent flag cleanly in SQLite', () async {
       final created = await repository.createAppointment(

@@ -1,7 +1,7 @@
 import 'package:animations/animations.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/theme/pixel_shapes.dart';
 import 'package:nudge/core/utils/date_formatters.dart';
@@ -39,8 +39,9 @@ class AgendaScreen extends ConsumerWidget {
     final tomorrowList =
         tomorrowAppointmentsAsync.valueOrNull ?? const <AppointmentEntity>[];
     final tomorrowTotal = tomorrowList.length;
-    final tomorrowPending =
-        tomorrowList.where((AppointmentEntity a) => !a.reminderSent).length;
+    final tomorrowPending = tomorrowList
+        .where((AppointmentEntity a) => !a.reminderSent)
+        .length;
 
     return Scaffold(
       appBar: AppBar(
@@ -167,17 +168,18 @@ class AgendaScreen extends ConsumerWidget {
               onRefresh: () => _triggerManualSync(context, ref),
               child: PageTransitionSwitcher(
                 duration: const Duration(milliseconds: 260),
-                transitionBuilder: (
-                  Widget child,
-                  Animation<double> primaryAnimation,
-                  Animation<double> secondaryAnimation,
-                ) {
-                  return FadeThroughTransition(
-                    animation: primaryAnimation,
-                    secondaryAnimation: secondaryAnimation,
-                    child: child,
-                  );
-                },
+                transitionBuilder:
+                    (
+                      Widget child,
+                      Animation<double> primaryAnimation,
+                      Animation<double> secondaryAnimation,
+                    ) {
+                      return FadeThroughTransition(
+                        animation: primaryAnimation,
+                        secondaryAnimation: secondaryAnimation,
+                        child: child,
+                      );
+                    },
                 child: KeyedSubtree(
                   key: ValueKey<DateTime>(selectedDate),
                   child: dayAppointmentsAsync.when(
@@ -222,11 +224,8 @@ class AgendaScreen extends ConsumerWidget {
                               initialDate: selectedDate,
                               existing: appointment,
                             ),
-                            onWhatsAppTap: () => _sendCardReminder(
-                              context,
-                              ref,
-                              appointment,
-                            ),
+                            onWhatsAppTap: () =>
+                                _sendCardReminder(context, ref, appointment),
                           );
                         },
                       );
@@ -273,20 +272,19 @@ class AgendaScreen extends ConsumerWidget {
 
   Future<void> _triggerManualSync(BuildContext context, WidgetRef ref) async {
     HapticFeedback.lightImpact();
-    final result =
-        await ref.read(syncControllerProvider.notifier).syncNow(silent: false);
+    final result = await ref
+        .read(syncControllerProvider.notifier)
+        .syncNow(silent: false);
     if (!context.mounted) {
       return;
     }
 
     if (result.hasError) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.errorMessage!)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(result.errorMessage!)));
     } else if (result.wasSkipped) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.skippedReason!)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(result.skippedReason!)));
     }
   }
 
@@ -296,18 +294,17 @@ class AgendaScreen extends ConsumerWidget {
     AppointmentEntity appointment,
   ) async {
     final tomorrow = DateFormatters.tomorrowRange().start;
-    final isTomorrow =
-        DateFormatters.isSameDay(appointment.startTime, tomorrow);
+    final isTomorrow = DateFormatters.isSameDay(
+      appointment.startTime,
+      tomorrow,
+    );
     final template = isTomorrow
         ? ref.read(tomorrowTemplateBodyProvider)
         : ref.read(confirmationTemplateBodyProvider);
 
     final launched = await ref
         .read(appointmentsControllerProvider.notifier)
-        .sendWhatsAppReminder(
-          appointment: appointment,
-          templateBody: template,
-        );
+        .sendWhatsAppReminder(appointment: appointment, templateBody: template);
     if (!launched && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -361,8 +358,8 @@ class AgendaScreen extends ConsumerWidget {
                       subtitle: Text(
                         auth.isSignedIn
                             ? '${auth.user!.email}\n'
-                                '${sync.lastSyncAt != null ? 'Última sync: ${DateFormatters.formatCompactDateTime(sync.lastSyncAt!)}' : 'Aún no sincronizado'}'
-                                '${pending > 0 ? ' · $pending pendientes' : ''}'
+                                  '${sync.lastSyncAt != null ? 'Última sync: ${DateFormatters.formatCompactDateTime(sync.lastSyncAt!)}' : 'Aún no sincronizado'}'
+                                  '${pending > 0 ? ' · $pending pendientes' : ''}'
                             : 'Conecta tu cuenta de Google para sincronizar citas en dos vías.',
                       ),
                     ),
@@ -476,7 +473,7 @@ class _OfflineOrPendingBanner extends StatelessWidget {
               isOnline
                   ? '$pendingCount cambios locales por subir a Calendar'
                   : 'Sin conexión · Los cambios se guardan localmente'
-                      '${pendingCount > 0 ? ' ($pendingCount)' : ''}',
+                        '${pendingCount > 0 ? ' ($pendingCount)' : ''}',
               style: theme.textTheme.labelMedium?.copyWith(
                 color: isOnline
                     ? colorScheme.onSecondaryContainer
@@ -485,10 +482,7 @@ class _OfflineOrPendingBanner extends StatelessWidget {
             ),
           ),
           if (onSyncTap != null)
-            TextButton(
-              onPressed: onSyncTap,
-              child: const Text('Subir'),
-            ),
+            TextButton(onPressed: onSyncTap, child: const Text('Subir')),
         ],
       ),
     );
@@ -534,8 +528,10 @@ class _TomorrowRemindersBanner extends StatelessWidget {
                   foregroundColor: hasAppointments
                       ? colorScheme.onTertiary
                       : colorScheme.onSurfaceVariant,
-                  child:
-                      const Icon(Icons.notifications_active_outlined, size: 18),
+                  child: const Icon(
+                    Icons.notifications_active_outlined,
+                    size: 18,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -554,8 +550,8 @@ class _TomorrowRemindersBanner extends StatelessWidget {
                       Text(
                         hasAppointments
                             ? (pendingCount > 0
-                                ? '$pendingCount por enviar por WhatsApp con un toque'
-                                : 'Todos los recordatorios de mañana fueron enviados')
+                                  ? '$pendingCount por enviar por WhatsApp con un toque'
+                                  : 'Todos los recordatorios de mañana fueron enviados')
                             : 'No hay citas programadas para mañana',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: hasAppointments
@@ -585,10 +581,7 @@ class _TomorrowRemindersBanner extends StatelessWidget {
 }
 
 class _EmptyDayView extends StatelessWidget {
-  const _EmptyDayView({
-    required this.selectedDate,
-    required this.onCreateTap,
-  });
+  const _EmptyDayView({required this.selectedDate, required this.onCreateTap});
 
   final DateTime selectedDate;
   final VoidCallback onCreateTap;
@@ -614,10 +607,7 @@ class _EmptyDayView extends StatelessWidget {
                   child: const Icon(Icons.event_note_rounded, size: 28),
                 ),
                 const SizedBox(height: 14),
-                Text(
-                  'Día libre',
-                  style: theme.textTheme.titleLarge,
-                ),
+                Text('Día libre', style: theme.textTheme.titleLarge),
                 const SizedBox(height: 6),
                 Text(
                   'No tienes citas agendadas para el '

@@ -190,12 +190,15 @@ abstract final class CalendarEventMetadataCodec {
         for (final rawLine in block.split('\n')) {
           final line = rawLine.trim();
           if (line.startsWith(AppConstants.metadataClientKey)) {
-            parsedClient =
-                line.substring(AppConstants.metadataClientKey.length).trim();
+            parsedClient = line
+                .substring(AppConstants.metadataClientKey.length)
+                .trim();
           } else if (line.startsWith(AppConstants.metadataPhoneKey)) {
-            final candidate =
-                line.substring(AppConstants.metadataPhoneKey.length).trim();
-            parsedPhone = PhoneSanitizer.sanitizeToE164Digits(candidate) ??
+            final candidate = line
+                .substring(AppConstants.metadataPhoneKey.length)
+                .trim();
+            parsedPhone =
+                PhoneSanitizer.sanitizeToE164Digits(candidate) ??
                 candidate.replaceAll(RegExp(r'[^0-9]'), '');
           } else if (line.startsWith(_serviceKey)) {
             parsedService = line.substring(_serviceKey.length).trim();
@@ -214,8 +217,9 @@ abstract final class CalendarEventMetadataCodec {
     } else if (rawSummary.isNotEmpty) {
       final suffix = '$_summarySeparator$resolvedClient';
       if (parsedClient != null && rawSummary.endsWith(suffix)) {
-        resolvedTitle =
-            rawSummary.substring(0, rawSummary.length - suffix.length).trim();
+        resolvedTitle = rawSummary
+            .substring(0, rawSummary.length - suffix.length)
+            .trim();
       } else {
         resolvedTitle = rawSummary;
       }

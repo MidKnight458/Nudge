@@ -29,9 +29,9 @@ class LocalAppointmentsDatasource {
       ]);
 
     return query.watch().map(
-          (List<TypedResult> rows) =>
-              rows.map(_mapJoinedRow).toList(growable: false),
-        );
+      (List<TypedResult> rows) =>
+          rows.map(_mapJoinedRow).toList(growable: false),
+    );
   }
 
   /// Watches unique local calendar dates within `[startInclusive, endExclusive)`
@@ -40,14 +40,14 @@ class LocalAppointmentsDatasource {
     DateTime startInclusive,
     DateTime endExclusive,
   ) {
-    return watchAppointmentsInRange(startInclusive, endExclusive).map(
-      (List<AppointmentEntity> items) {
-        return items.map((AppointmentEntity item) {
-          final local = item.startTime.toLocal();
-          return DateTime(local.year, local.month, local.day);
-        }).toSet();
-      },
-    );
+    return watchAppointmentsInRange(startInclusive, endExclusive).map((
+      List<AppointmentEntity> items,
+    ) {
+      return items.map((AppointmentEntity item) {
+        final local = item.startTime.toLocal();
+        return DateTime(local.year, local.month, local.day);
+      }).toSet();
+    });
   }
 
   /// Watches the count of appointments awaiting synchronization.
@@ -59,9 +59,9 @@ class LocalAppointmentsDatasource {
         _db.appointments.syncStatus.equals(AppConstants.syncStatusSynced).not(),
       );
 
-    return query
-        .watchSingle()
-        .map((TypedResult row) => row.read(countExp) ?? 0);
+    return query.watchSingle().map(
+      (TypedResult row) => row.read(countExp) ?? 0,
+    );
   }
 
   /// Finds or inserts a client record matching Google Contact ID or E.164 phone.
@@ -80,38 +80,44 @@ class LocalAppointmentsDatasource {
 
     Client? existing;
     if (cleanContactId != null) {
-      existing = await (_db.select(_db.clients)
-            ..where((c) => c.googleContactId.equals(cleanContactId))
-            ..limit(1))
-          .getSingleOrNull();
+      existing =
+          await (_db.select(_db.clients)
+                ..where((c) => c.googleContactId.equals(cleanContactId))
+                ..limit(1))
+              .getSingleOrNull();
     }
 
     if (existing == null && cleanE164.isNotEmpty) {
-      existing = await (_db.select(_db.clients)
-            ..where((c) => c.phoneE164.equals(cleanE164))
-            ..limit(1))
-          .getSingleOrNull();
+      existing =
+          await (_db.select(_db.clients)
+                ..where((c) => c.phoneE164.equals(cleanE164))
+                ..limit(1))
+              .getSingleOrNull();
     }
 
     if (existing == null && cleanE164.isEmpty) {
-      existing = await (_db.select(_db.clients)
-            ..where(
-              (c) => c.name.equals(cleanName) & c.phoneE164.equals(''),
-            )
-            ..limit(1))
-          .getSingleOrNull();
+      existing =
+          await (_db.select(_db.clients)
+                ..where(
+                  (c) => c.name.equals(cleanName) & c.phoneE164.equals(''),
+                )
+                ..limit(1))
+              .getSingleOrNull();
     }
 
     if (existing != null) {
-      final resolvedRawPhone =
-          cleanRawPhone.isNotEmpty ? cleanRawPhone : existing.rawPhone;
-      final resolvedE164 =
-          cleanE164.isNotEmpty ? cleanE164 : existing.phoneE164;
+      final resolvedRawPhone = cleanRawPhone.isNotEmpty
+          ? cleanRawPhone
+          : existing.rawPhone;
+      final resolvedE164 = cleanE164.isNotEmpty
+          ? cleanE164
+          : existing.phoneE164;
       final resolvedName = cleanName.isNotEmpty ? cleanName : existing.name;
       final resolvedContactId = cleanContactId ?? existing.googleContactId;
 
-      await (_db.update(_db.clients)..where((c) => c.id.equals(existing!.id)))
-          .write(
+      await (_db.update(
+        _db.clients,
+      )..where((c) => c.id.equals(existing!.id))).write(
         ClientsCompanion(
           googleContactId: Value(resolvedContactId),
           name: Value(resolvedName),
@@ -122,7 +128,9 @@ class LocalAppointmentsDatasource {
       return existing.id;
     }
 
-    return _db.into(_db.clients).insert(
+    return _db
+        .into(_db.clients)
+        .insert(
           ClientsCompanion.insert(
             googleContactId: Value(cleanContactId),
             name: cleanName,
@@ -146,7 +154,9 @@ class LocalAppointmentsDatasource {
 
       final now = DateTime.now().toUtc();
       final cleanNotes = input.notes?.trim();
-      final insertedId = await _db.into(_db.appointments).insert(
+      final insertedId = await _db
+          .into(_db.appointments)
+          .insert(
             AppointmentsCompanion.insert(
               clientId: clientId,
               title: input.title.trim(),
@@ -185,9 +195,9 @@ class LocalAppointmentsDatasource {
       final cleanNotes = input.notes?.trim();
       final now = DateTime.now().toUtc();
 
-      await (_db.update(_db.appointments)
-            ..where((a) => a.id.equals(existing.id)))
-          .write(
+      await (_db.update(
+        _db.appointments,
+      )..where((a) => a.id.equals(existing.id))).write(
         AppointmentsCompanion(
           clientId: Value(clientId),
           title: Value(input.title.trim()),
@@ -207,25 +217,26 @@ class LocalAppointmentsDatasource {
 
   /// Marks a synced appointment as `pending_delete`, or purges an unsynced row.
   Future<bool> markAppointmentDeletedOffline(int appointmentId) async {
-    final row = await (_db.select(_db.appointments)
-          ..where((a) => a.id.equals(appointmentId))
-          ..limit(1))
-        .getSingleOrNull();
+    final row =
+        await (_db.select(_db.appointments)
+              ..where((a) => a.id.equals(appointmentId))
+              ..limit(1))
+            .getSingleOrNull();
     if (row == null) {
       return false;
     }
 
     if (row.googleCalendarEventId == null ||
         row.googleCalendarEventId!.isEmpty) {
-      await (_db.delete(_db.appointments)
-            ..where((a) => a.id.equals(appointmentId)))
-          .go();
+      await (_db.delete(
+        _db.appointments,
+      )..where((a) => a.id.equals(appointmentId))).go();
       return false;
     }
 
-    await (_db.update(_db.appointments)
-          ..where((a) => a.id.equals(appointmentId)))
-        .write(
+    await (_db.update(
+      _db.appointments,
+    )..where((a) => a.id.equals(appointmentId))).write(
       AppointmentsCompanion(
         syncStatus: const Value(AppConstants.syncStatusPendingDelete),
         lastModified: Value(DateTime.now().toUtc()),
@@ -236,16 +247,18 @@ class LocalAppointmentsDatasource {
 
   /// Permanently removes a local appointment row after remote deletion.
   Future<void> purgeAppointmentById(int appointmentId) async {
-    await (_db.delete(_db.appointments)
-          ..where((a) => a.id.equals(appointmentId)))
-        .go();
+    await (_db.delete(
+      _db.appointments,
+    )..where((a) => a.id.equals(appointmentId))).go();
   }
 
   /// Removes a local appointment matching [googleCalendarEventId].
   Future<bool> deleteByGoogleEventId(String googleCalendarEventId) async {
-    final deletedCount = await (_db.delete(_db.appointments)
-          ..where((a) => a.googleCalendarEventId.equals(googleCalendarEventId)))
-        .go();
+    final deletedCount =
+        await (_db.delete(_db.appointments)..where(
+              (a) => a.googleCalendarEventId.equals(googleCalendarEventId),
+            ))
+            .go();
     return deletedCount > 0;
   }
 
@@ -253,11 +266,7 @@ class LocalAppointmentsDatasource {
   Future<void> markReminderSent(int appointmentId, {bool sent = true}) async {
     await (_db.update(_db.appointments)
           ..where((a) => a.id.equals(appointmentId)))
-        .write(
-      AppointmentsCompanion(
-        reminderSent: Value(sent),
-      ),
-    );
+        .write(AppointmentsCompanion(reminderSent: Value(sent)));
   }
 
   /// Returns all appointments whose `syncStatus` is not `'synced'`.
@@ -277,9 +286,9 @@ class LocalAppointmentsDatasource {
     required int appointmentId,
     required String googleCalendarEventId,
   }) async {
-    await (_db.update(_db.appointments)
-          ..where((a) => a.id.equals(appointmentId)))
-        .write(
+    await (_db.update(
+      _db.appointments,
+    )..where((a) => a.id.equals(appointmentId))).write(
       AppointmentsCompanion(
         googleCalendarEventId: Value(googleCalendarEventId),
         syncStatus: const Value(AppConstants.syncStatusSynced),
@@ -298,10 +307,11 @@ class LocalAppointmentsDatasource {
     required DateTime endTime,
   }) async {
     return _db.transaction(() async {
-      final existing = await (_db.select(_db.appointments)
-            ..where((a) => a.googleCalendarEventId.equals(googleEventId))
-            ..limit(1))
-          .getSingleOrNull();
+      final existing =
+          await (_db.select(_db.appointments)
+                ..where((a) => a.googleCalendarEventId.equals(googleEventId))
+                ..limit(1))
+              .getSingleOrNull();
 
       if (existing != null &&
           (existing.syncStatus == AppConstants.syncStatusPendingUpdate ||
@@ -322,9 +332,9 @@ class LocalAppointmentsDatasource {
 
       final now = DateTime.now().toUtc();
       if (existing != null) {
-        await (_db.update(_db.appointments)
-              ..where((a) => a.id.equals(existing.id)))
-            .write(
+        await (_db.update(
+          _db.appointments,
+        )..where((a) => a.id.equals(existing.id))).write(
           AppointmentsCompanion(
             clientId: Value(clientId),
             title: Value(decoded.title),
@@ -336,7 +346,9 @@ class LocalAppointmentsDatasource {
           ),
         );
       } else {
-        await _db.into(_db.appointments).insert(
+        await _db
+            .into(_db.appointments)
+            .insert(
               AppointmentsCompanion.insert(
                 googleCalendarEventId: Value(googleEventId),
                 clientId: clientId,
@@ -363,26 +375,32 @@ class LocalAppointmentsDatasource {
   }
 
   Future<SyncMetadataRecord> getSyncMetadata() async {
-    final row = await (_db.select(_db.syncMetadata)
-          ..where((m) => m.id.equals(1))
-          ..limit(1))
-        .getSingleOrNull();
+    final row =
+        await (_db.select(_db.syncMetadata)
+              ..where((m) => m.id.equals(1))
+              ..limit(1))
+            .getSingleOrNull();
     if (row != null) {
       return row;
     }
-    await _db.into(_db.syncMetadata).insert(
+    await _db
+        .into(_db.syncMetadata)
+        .insert(
           const SyncMetadataCompanion(id: Value(1)),
           mode: InsertMode.insertOrIgnore,
         );
-    return (_db.select(_db.syncMetadata)..where((m) => m.id.equals(1)))
-        .getSingle();
+    return (_db.select(
+      _db.syncMetadata,
+    )..where((m) => m.id.equals(1))).getSingle();
   }
 
   Future<void> saveSyncMetadata({
     String? syncToken,
     DateTime? lastSyncTimestamp,
   }) async {
-    await _db.into(_db.syncMetadata).insertOnConflictUpdate(
+    await _db
+        .into(_db.syncMetadata)
+        .insertOnConflictUpdate(
           SyncMetadataCompanion(
             id: const Value(1),
             syncToken: Value(syncToken),
@@ -395,8 +413,9 @@ class LocalAppointmentsDatasource {
     await (_db.update(_db.syncMetadata)..where((m) => m.id.equals(1))).write(
       SyncMetadataCompanion(
         syncToken: const Value(null),
-        lastSyncTimestamp:
-            clearTimestamp ? const Value(null) : const Value.absent(),
+        lastSyncTimestamp: clearTimestamp
+            ? const Value(null)
+            : const Value.absent(),
       ),
     );
   }

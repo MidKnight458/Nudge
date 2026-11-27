@@ -7,10 +7,9 @@ import 'package:nudge/features/auth/domain/auth_repository.dart';
 /// Google Sign-In implementation requesting the Calendar Events scope.
 class GoogleAuthRepositoryImpl implements AuthRepository {
   GoogleAuthRepositoryImpl({GoogleSignIn? googleSignIn})
-      : _googleSignIn = googleSignIn ??
-            GoogleSignIn(
-              scopes: const <String>[AppConstants.calendarScope],
-            );
+    : _googleSignIn =
+          googleSignIn ??
+          GoogleSignIn(scopes: const <String>[AppConstants.calendarScope]);
 
   final GoogleSignIn _googleSignIn;
 
@@ -28,13 +27,13 @@ class GoogleAuthRepositoryImpl implements AuthRepository {
       return null;
     }
 
-    final hasScope = await _googleSignIn.canAccessScopes(
-      const <String>[AppConstants.calendarScope],
-    );
+    final hasScope = await _googleSignIn.canAccessScopes(const <String>[
+      AppConstants.calendarScope,
+    ]);
     if (!hasScope) {
-      final granted = await _googleSignIn.requestScopes(
-        const <String>[AppConstants.calendarScope],
-      );
+      final granted = await _googleSignIn.requestScopes(const <String>[
+        AppConstants.calendarScope,
+      ]);
       if (!granted) {
         return null;
       }

@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/theme/pixel_shapes.dart';
 import 'package:nudge/core/utils/date_formatters.dart';
@@ -32,10 +32,8 @@ class AppointmentFormSheet extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => AppointmentFormSheet(
-        initialDate: initialDate,
-        existing: existing,
-      ),
+      builder: (_) =>
+          AppointmentFormSheet(initialDate: initialDate, existing: existing),
     );
   }
 
@@ -85,10 +83,7 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
           : 10;
       _selectedDate = base;
       _startTime = TimeOfDay(hour: defaultHour, minute: 0);
-      _endTime = TimeOfDay(
-        hour: (defaultHour + 1).clamp(1, 23),
-        minute: 0,
-      );
+      _endTime = TimeOfDay(hour: (defaultHour + 1).clamp(1, 23), minute: 0);
     }
   }
 
@@ -359,10 +354,10 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
                     _selectedContact == null
                         ? 'Prioriza tus contactos de Google o crea uno manual'
                         : (_selectedContact!.phoneE164.isEmpty
-                            ? 'Sin teléfono WhatsApp (toca para agregar)'
-                            : PhoneSanitizer.formatForDisplay(
-                                _selectedContact!.phoneE164,
-                              )),
+                              ? 'Sin teléfono WhatsApp (toca para agregar)'
+                              : PhoneSanitizer.formatForDisplay(
+                                  _selectedContact!.phoneE164,
+                                )),
                     style: theme.textTheme.bodyMedium,
                   ),
                   trailing: const Icon(Icons.chevron_right_rounded),

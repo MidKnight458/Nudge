@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nudge/core/theme/pixel_shapes.dart';
 import 'package:nudge/core/utils/phone_sanitizer.dart';
 import 'package:nudge/features/contacts/domain/contacts_repository.dart';
@@ -119,8 +119,8 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
                           if (_manualMode &&
                               _manualNameController.text.isEmpty &&
                               _searchController.text.trim().isNotEmpty) {
-                            _manualNameController.text =
-                                _searchController.text.trim();
+                            _manualNameController.text = _searchController.text
+                                .trim();
                           }
                         });
                       },
@@ -241,8 +241,9 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color:
-                          colorScheme.primaryContainer.withValues(alpha: 0.6),
+                      color: colorScheme.primaryContainer.withValues(
+                        alpha: 0.6,
+                      ),
                       borderRadius: PixelShapes.inputBorderRadius,
                     ),
                     child: Row(
@@ -428,10 +429,7 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
               foregroundColor: contact.isGoogleAccount
                   ? colorScheme.onPrimaryContainer
                   : colorScheme.onSurfaceVariant,
-              child: Text(
-                initial,
-                style: theme.textTheme.titleMedium,
-              ),
+              child: Text(initial, style: theme.textTheme.titleMedium),
             ),
             title: Row(
               children: [

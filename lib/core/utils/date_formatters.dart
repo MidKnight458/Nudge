@@ -6,13 +6,17 @@ abstract final class DateFormatters {
 
   static final DateFormat _timeFormat = DateFormat('HH:mm', _locale);
   static final DateFormat _shortDateFormat = DateFormat('d MMM yyyy', _locale);
-  static final DateFormat _fullDateFormat =
-      DateFormat('EEEE d \'de\' MMMM', _locale);
+  static final DateFormat _fullDateFormat = DateFormat(
+    'EEEE d \'de\' MMMM',
+    _locale,
+  );
   static final DateFormat _dayNumberFormat = DateFormat('d', _locale);
   static final DateFormat _weekdayShortFormat = DateFormat('EEE', _locale);
   static final DateFormat _monthYearFormat = DateFormat('MMMM yyyy', _locale);
-  static final DateFormat _compactDateTimeFormat =
-      DateFormat('d MMM, HH:mm', _locale);
+  static final DateFormat _compactDateTimeFormat = DateFormat(
+    'd MMM, HH:mm',
+    _locale,
+  );
 
   /// Formats a [DateTime] as 24-hour time (`HH:mm`).
   static String formatTime(DateTime dateTime) =>
@@ -32,8 +36,9 @@ abstract final class DateFormatters {
 
   /// Formats an abbreviated uppercase-initial weekday (`Lun`, `Mar`).
   static String formatWeekdayShort(DateTime dateTime) {
-    final formatted =
-        _weekdayShortFormat.format(dateTime.toLocal()).replaceAll('.', '');
+    final formatted = _weekdayShortFormat
+        .format(dateTime.toLocal())
+        .replaceAll('.', '');
     return _capitalize(formatted);
   }
 

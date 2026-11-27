@@ -1,5 +1,5 @@
 import 'package:dynamic_color/dynamic_color.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/theme/app_theme.dart';
 import 'package:nudge/features/appointments/presentation/screens/agenda_screen.dart';
