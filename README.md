@@ -62,6 +62,10 @@ Tus citas, clientes y plantillas permanecen en tu teléfono y en tu propia cuent
   flutter analyze --fatal-infos
   flutter test
   ```
-- **Compilación y publicación automática:** Al etiquetar una versión (`git tag -a v1.0.0 -m "Release v1.0.0" && git push origin v1.0.0`), GitHub Actions ejecuta las pruebas, compila el APK y el AAB de release y los adjunta automáticamente en GitHub Releases.
+- **Publicar un release localmente (solo APK):**
+  ```bash
+  ./scripts/release.sh v1.0.1
+  ```
+  El script valida formato, análisis estático y tests, compila `app-release.apk` en tu equipo y sube `nudge-v1.0.1.apk` a GitHub Releases. GitHub Actions solo ejecuta el chequeo rápido de formato, análisis y tests en cada `push` a `main`.
 
 </details>
