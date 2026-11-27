@@ -2,6 +2,7 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/theme/app_theme.dart';
+import 'package:nudge/features/appointments/presentation/screens/agenda_screen.dart';
 
 /// Root application widget with Monet dynamic color theming.
 class NudgeApp extends StatelessWidget {
@@ -23,23 +24,9 @@ class NudgeApp extends StatelessWidget {
             brightness: Brightness.dark,
             dynamicScheme: darkDynamic,
           ),
-          home: const _NudgeShellPlaceholder(),
+          home: const AgendaScreen(),
         );
       },
-    );
-  }
-}
-
-class _NudgeShellPlaceholder extends StatelessWidget {
-  const _NudgeShellPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text(AppConstants.appName)),
-      body: const Center(
-        child: Text('Nudge'),
-      ),
     );
   }
 }

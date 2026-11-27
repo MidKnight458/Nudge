@@ -8,6 +8,7 @@ import 'package:nudge/features/appointments/data/local_appointments_datasource.d
 import 'package:nudge/features/appointments/domain/appointments_repository.dart';
 import 'package:nudge/features/appointments/domain/entities/appointment_entity.dart';
 import 'package:nudge/features/auth/presentation/auth_controller.dart';
+import 'package:nudge/features/reminders/data/whatsapp_launcher_service.dart';
 
 final localAppointmentsDatasourceProvider =
     Provider<LocalAppointmentsDatasource>((Ref ref) {
@@ -101,6 +102,22 @@ class AppointmentsController extends Notifier<void> {
 
   Future<void> markReminderSent(int appointmentId, {bool sent = true}) {
     return _repository.markReminderSent(appointmentId, sent: sent);
+  }
+
+  Future<bool> sendWhatsAppReminder({
+    required AppointmentEntity appointment,
+    required String templateBody,
+    bool markSent = true,
+  }) async {
+    final launched =
+        await ref.read(whatsappLauncherServiceProvider).sendAppointmentReminder(
+              appointment: appointment,
+              templateBody: templateBody,
+            );
+    if (launched && markSent && !appointment.reminderSent) {
+      await markReminderSent(appointment.id);
+    }
+    return launched;
   }
 }
 
