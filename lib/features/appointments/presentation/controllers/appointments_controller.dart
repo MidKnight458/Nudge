@@ -3,6 +3,7 @@ import 'package:nudge/core/database/app_database.dart';
 import 'package:nudge/core/network/connectivity_service.dart';
 import 'package:nudge/core/utils/date_formatters.dart';
 import 'package:nudge/features/appointments/data/appointments_repository_impl.dart';
+import 'package:nudge/features/appointments/data/firestore_appointments_datasource.dart';
 import 'package:nudge/features/appointments/data/google_calendar_datasource.dart';
 import 'package:nudge/features/appointments/data/local_appointments_datasource.dart';
 import 'package:nudge/features/appointments/domain/appointments_repository.dart';
@@ -29,6 +30,7 @@ final appointmentsRepositoryProvider = Provider<AppointmentsRepository>((
   return AppointmentsRepositoryImpl(
     localDatasource: ref.watch(localAppointmentsDatasourceProvider),
     remoteDatasource: ref.watch(googleCalendarDatasourceProvider),
+    firestoreDatasource: ref.watch(firestoreSyncDatasourceProvider),
     connectivityService: ref.watch(connectivityServiceProvider),
     authRepository: ref.watch(authRepositoryProvider),
   );

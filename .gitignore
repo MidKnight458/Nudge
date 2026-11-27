@@ -72,5 +72,9 @@ migrate_working_dir/
 **/ios/ServiceDefinitions.json
 **/ios/Runner/GeneratedPluginRegistrant.*
 
+# Firebase configuration (local per-environment, never commit credentials)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
 # Coverage
 coverage/

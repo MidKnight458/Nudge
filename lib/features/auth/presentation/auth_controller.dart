@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nudge/core/constants/app_constants.dart';
@@ -8,6 +9,35 @@ import 'package:nudge/features/auth/domain/auth_repository.dart';
 
 /// Maps Google Sign-In exceptions into actionable, non-sensitive messages.
 String mapSignInErrorMessage(Object error) {
+  if (error is FirebaseAuthException) {
+    switch (error.code) {
+      case 'network-request-failed':
+        return 'Sin conexión con Firebase Auth. Verifica tu internet.';
+      case 'invalid-credential':
+        return 'Las credenciales de Google no fueron aceptadas por Firebase Auth. '
+            'Verifica la configuración OAuth y el SHA-1 en Firebase Console.';
+      case 'account-exists-with-different-credential':
+        return 'Esta cuenta ya existe con otro método de acceso.';
+      case 'user-disabled':
+        return 'Esta cuenta está deshabilitada en Firebase Auth.';
+      case 'operation-not-allowed':
+        return 'El acceso con Google no está habilitado en Firebase Authentication.';
+      case 'app-not-authorized':
+      case 'invalid-api-key':
+        return 'Esta compilación no está autorizada en Firebase Console. '
+            'Verifica el SHA-1 y google-services.json.';
+      default:
+        final code = error.code.trim();
+        return code.isEmpty
+            ? 'No fue posible autenticar con Firebase.'
+            : 'No fue posible autenticar con Firebase ($code).';
+    }
+  }
+  if (error is StateError &&
+      (error.message.contains('google-services.json') ||
+          error.message.contains('Firebase'))) {
+    return error.message;
+  }
   if (error is PlatformException) {
     final code = error.code.toLowerCase();
     final message = error.message ?? '';

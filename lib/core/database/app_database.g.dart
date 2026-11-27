@@ -381,6 +381,16 @@ class $AppointmentsTable extends Appointments
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
+  @override
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+    'sync_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
   static const VerificationMeta _googleCalendarEventIdMeta =
       const VerificationMeta('googleCalendarEventId');
   @override
@@ -488,6 +498,7 @@ class $AppointmentsTable extends Appointments
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    syncId,
     googleCalendarEventId,
     clientId,
     title,
@@ -512,6 +523,14 @@ class $AppointmentsTable extends Appointments
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('sync_id')) {
+      context.handle(
+        _syncIdMeta,
+        syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_syncIdMeta);
     }
     if (data.containsKey('google_calendar_event_id')) {
       context.handle(
@@ -599,6 +618,10 @@ class $AppointmentsTable extends Appointments
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
+      syncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_id'],
+      )!,
       googleCalendarEventId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}google_calendar_event_id'],
@@ -646,6 +669,7 @@ class $AppointmentsTable extends Appointments
 
 class Appointment extends DataClass implements Insertable<Appointment> {
   final int id;
+  final String syncId;
   final String? googleCalendarEventId;
   final int clientId;
   final String title;
@@ -657,6 +681,7 @@ class Appointment extends DataClass implements Insertable<Appointment> {
   final DateTime lastModified;
   const Appointment({
     required this.id,
+    required this.syncId,
     this.googleCalendarEventId,
     required this.clientId,
     required this.title,
@@ -671,6 +696,7 @@ class Appointment extends DataClass implements Insertable<Appointment> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    map['sync_id'] = Variable<String>(syncId);
     if (!nullToAbsent || googleCalendarEventId != null) {
       map['google_calendar_event_id'] = Variable<String>(googleCalendarEventId);
     }
@@ -690,6 +716,7 @@ class Appointment extends DataClass implements Insertable<Appointment> {
   AppointmentsCompanion toCompanion(bool nullToAbsent) {
     return AppointmentsCompanion(
       id: Value(id),
+      syncId: Value(syncId),
       googleCalendarEventId: googleCalendarEventId == null && nullToAbsent
           ? const Value.absent()
           : Value(googleCalendarEventId),
@@ -713,6 +740,7 @@ class Appointment extends DataClass implements Insertable<Appointment> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Appointment(
       id: serializer.fromJson<int>(json['id']),
+      syncId: serializer.fromJson<String>(json['syncId']),
       googleCalendarEventId: serializer.fromJson<String?>(
         json['googleCalendarEventId'],
       ),
@@ -731,6 +759,7 @@ class Appointment extends DataClass implements Insertable<Appointment> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'syncId': serializer.toJson<String>(syncId),
       'googleCalendarEventId': serializer.toJson<String?>(
         googleCalendarEventId,
       ),
@@ -747,6 +776,7 @@ class Appointment extends DataClass implements Insertable<Appointment> {
 
   Appointment copyWith({
     int? id,
+    String? syncId,
     Value<String?> googleCalendarEventId = const Value.absent(),
     int? clientId,
     String? title,
@@ -758,6 +788,7 @@ class Appointment extends DataClass implements Insertable<Appointment> {
     DateTime? lastModified,
   }) => Appointment(
     id: id ?? this.id,
+    syncId: syncId ?? this.syncId,
     googleCalendarEventId: googleCalendarEventId.present
         ? googleCalendarEventId.value
         : this.googleCalendarEventId,
@@ -773,6 +804,7 @@ class Appointment extends DataClass implements Insertable<Appointment> {
   Appointment copyWithCompanion(AppointmentsCompanion data) {
     return Appointment(
       id: data.id.present ? data.id.value : this.id,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
       googleCalendarEventId: data.googleCalendarEventId.present
           ? data.googleCalendarEventId.value
           : this.googleCalendarEventId,
@@ -797,6 +829,7 @@ class Appointment extends DataClass implements Insertable<Appointment> {
   String toString() {
     return (StringBuffer('Appointment(')
           ..write('id: $id, ')
+          ..write('syncId: $syncId, ')
           ..write('googleCalendarEventId: $googleCalendarEventId, ')
           ..write('clientId: $clientId, ')
           ..write('title: $title, ')
@@ -813,6 +846,7 @@ class Appointment extends DataClass implements Insertable<Appointment> {
   @override
   int get hashCode => Object.hash(
     id,
+    syncId,
     googleCalendarEventId,
     clientId,
     title,
@@ -828,6 +862,7 @@ class Appointment extends DataClass implements Insertable<Appointment> {
       identical(this, other) ||
       (other is Appointment &&
           other.id == this.id &&
+          other.syncId == this.syncId &&
           other.googleCalendarEventId == this.googleCalendarEventId &&
           other.clientId == this.clientId &&
           other.title == this.title &&
@@ -841,6 +876,7 @@ class Appointment extends DataClass implements Insertable<Appointment> {
 
 class AppointmentsCompanion extends UpdateCompanion<Appointment> {
   final Value<int> id;
+  final Value<String> syncId;
   final Value<String?> googleCalendarEventId;
   final Value<int> clientId;
   final Value<String> title;
@@ -852,6 +888,7 @@ class AppointmentsCompanion extends UpdateCompanion<Appointment> {
   final Value<DateTime> lastModified;
   const AppointmentsCompanion({
     this.id = const Value.absent(),
+    this.syncId = const Value.absent(),
     this.googleCalendarEventId = const Value.absent(),
     this.clientId = const Value.absent(),
     this.title = const Value.absent(),
@@ -864,6 +901,7 @@ class AppointmentsCompanion extends UpdateCompanion<Appointment> {
   });
   AppointmentsCompanion.insert({
     this.id = const Value.absent(),
+    required String syncId,
     this.googleCalendarEventId = const Value.absent(),
     required int clientId,
     required String title,
@@ -873,13 +911,15 @@ class AppointmentsCompanion extends UpdateCompanion<Appointment> {
     this.reminderSent = const Value.absent(),
     this.syncStatus = const Value.absent(),
     required DateTime lastModified,
-  }) : clientId = Value(clientId),
+  }) : syncId = Value(syncId),
+       clientId = Value(clientId),
        title = Value(title),
        startTime = Value(startTime),
        endTime = Value(endTime),
        lastModified = Value(lastModified);
   static Insertable<Appointment> custom({
     Expression<int>? id,
+    Expression<String>? syncId,
     Expression<String>? googleCalendarEventId,
     Expression<int>? clientId,
     Expression<String>? title,
@@ -892,6 +932,7 @@ class AppointmentsCompanion extends UpdateCompanion<Appointment> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (syncId != null) 'sync_id': syncId,
       if (googleCalendarEventId != null)
         'google_calendar_event_id': googleCalendarEventId,
       if (clientId != null) 'client_id': clientId,
@@ -907,6 +948,7 @@ class AppointmentsCompanion extends UpdateCompanion<Appointment> {
 
   AppointmentsCompanion copyWith({
     Value<int>? id,
+    Value<String>? syncId,
     Value<String?>? googleCalendarEventId,
     Value<int>? clientId,
     Value<String>? title,
@@ -919,6 +961,7 @@ class AppointmentsCompanion extends UpdateCompanion<Appointment> {
   }) {
     return AppointmentsCompanion(
       id: id ?? this.id,
+      syncId: syncId ?? this.syncId,
       googleCalendarEventId:
           googleCalendarEventId ?? this.googleCalendarEventId,
       clientId: clientId ?? this.clientId,
@@ -937,6 +980,9 @@ class AppointmentsCompanion extends UpdateCompanion<Appointment> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
     }
     if (googleCalendarEventId.present) {
       map['google_calendar_event_id'] = Variable<String>(
@@ -974,6 +1020,7 @@ class AppointmentsCompanion extends UpdateCompanion<Appointment> {
   String toString() {
     return (StringBuffer('AppointmentsCompanion(')
           ..write('id: $id, ')
+          ..write('syncId: $syncId, ')
           ..write('googleCalendarEventId: $googleCalendarEventId, ')
           ..write('clientId: $clientId, ')
           ..write('title: $title, ')
@@ -1888,6 +1935,7 @@ typedef $$ClientsTableProcessedTableManager =
 typedef $$AppointmentsTableCreateCompanionBuilder =
     AppointmentsCompanion Function({
       Value<int> id,
+      required String syncId,
       Value<String?> googleCalendarEventId,
       required int clientId,
       required String title,
@@ -1901,6 +1949,7 @@ typedef $$AppointmentsTableCreateCompanionBuilder =
 typedef $$AppointmentsTableUpdateCompanionBuilder =
     AppointmentsCompanion Function({
       Value<int> id,
+      Value<String> syncId,
       Value<String?> googleCalendarEventId,
       Value<int> clientId,
       Value<String> title,
@@ -1945,6 +1994,11 @@ class $$AppointmentsTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncId => $composableBuilder(
+    column: $table.syncId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2026,6 +2080,11 @@ class $$AppointmentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get googleCalendarEventId => $composableBuilder(
     column: $table.googleCalendarEventId,
     builder: (column) => ColumnOrderings(column),
@@ -2101,6 +2160,9 @@ class $$AppointmentsTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
 
   GeneratedColumn<String> get googleCalendarEventId => $composableBuilder(
     column: $table.googleCalendarEventId,
@@ -2187,6 +2249,7 @@ class $$AppointmentsTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<String> syncId = const Value.absent(),
                 Value<String?> googleCalendarEventId = const Value.absent(),
                 Value<int> clientId = const Value.absent(),
                 Value<String> title = const Value.absent(),
@@ -2198,6 +2261,7 @@ class $$AppointmentsTableTableManager
                 Value<DateTime> lastModified = const Value.absent(),
               }) => AppointmentsCompanion(
                 id: id,
+                syncId: syncId,
                 googleCalendarEventId: googleCalendarEventId,
                 clientId: clientId,
                 title: title,
@@ -2211,6 +2275,7 @@ class $$AppointmentsTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                required String syncId,
                 Value<String?> googleCalendarEventId = const Value.absent(),
                 required int clientId,
                 required String title,
@@ -2222,6 +2287,7 @@ class $$AppointmentsTableTableManager
                 required DateTime lastModified,
               }) => AppointmentsCompanion.insert(
                 id: id,
+                syncId: syncId,
                 googleCalendarEventId: googleCalendarEventId,
                 clientId: clientId,
                 title: title,

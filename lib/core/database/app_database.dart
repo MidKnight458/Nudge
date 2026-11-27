@@ -18,9 +18,10 @@ class Clients extends Table {
   TextColumn get phoneE164 => text()();
 }
 
-/// Offline-first appointment record synchronized with Google Calendar v3.
+/// Offline-first appointment record synchronized with Firestore and Google Calendar.
 class Appointments extends Table {
   IntColumn get id => integer().autoIncrement()();
+  TextColumn get syncId => text().unique()();
   TextColumn get googleCalendarEventId => text().nullable().unique()();
   IntColumn get clientId =>
       integer().references(Clients, #id, onDelete: KeyAction.cascade)();
@@ -62,12 +63,33 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) async {
       await m.createAll();
+    },
+    onUpgrade: (Migrator m, int from, int to) async {
+      if (from < 2) {
+        await customStatement(
+          'ALTER TABLE appointments ADD COLUMN sync_id TEXT',
+        );
+        await customStatement('''
+          UPDATE appointments
+          SET sync_id = CASE
+            WHEN google_calendar_event_id IS NOT NULL
+              AND length(trim(google_calendar_event_id)) > 0
+              THEN 'gcal-' || replace(google_calendar_event_id, '/', '_')
+            ELSE 'legacy-' || lower(hex(randomblob(8)))
+          END
+          WHERE sync_id IS NULL
+        ''');
+        await customStatement(
+          'CREATE UNIQUE INDEX IF NOT EXISTS idx_appointments_sync_id '
+          'ON appointments (sync_id)',
+        );
+      }
     },
     beforeOpen: (OpeningDetails details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -81,7 +103,7 @@ class AppDatabase extends _$AppDatabase {
       mode: InsertMode.insertOrIgnore,
     );
 
-    final now = DateTime.now().toUtc();
+    final now = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
     await batch((Batch batch) {
       batch.insertAll(reminderTemplates, [
         ReminderTemplatesCompanion.insert(

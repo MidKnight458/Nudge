@@ -1,35 +1,40 @@
 import 'dart:async';
 
 import 'package:googleapis/calendar/v3.dart' as calendar;
-import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/network/connectivity_service.dart';
+import 'package:nudge/features/appointments/data/firestore_appointments_datasource.dart';
 import 'package:nudge/features/appointments/data/google_calendar_datasource.dart';
 import 'package:nudge/features/appointments/data/local_appointments_datasource.dart';
 import 'package:nudge/features/appointments/domain/appointments_repository.dart';
 import 'package:nudge/features/appointments/domain/entities/appointment_entity.dart';
 import 'package:nudge/features/auth/domain/auth_repository.dart';
 
-/// Offline-first repository coordinating Drift SQLite and Google Calendar v3.
+/// Offline-first repository backed by Drift SQLite, Cloud Firestore
+/// (real-time multi-device source of truth), and Google Calendar mirroring.
 class AppointmentsRepositoryImpl implements AppointmentsRepository {
   AppointmentsRepositoryImpl({
     required LocalAppointmentsDatasource localDatasource,
     required GoogleCalendarDatasource remoteDatasource,
+    required FirestoreSyncDatasource firestoreDatasource,
     required ConnectivityService connectivityService,
     required AuthRepository authRepository,
     DateTime Function()? nowProvider,
   }) : _local = localDatasource,
-       _remote = remoteDatasource,
+       _calendar = remoteDatasource,
+       _firestore = firestoreDatasource,
        _connectivity = connectivityService,
        _auth = authRepository,
        _now = nowProvider ?? DateTime.now;
 
   final LocalAppointmentsDatasource _local;
-  final GoogleCalendarDatasource _remote;
+  final GoogleCalendarDatasource _calendar;
+  final FirestoreSyncDatasource _firestore;
   final ConnectivityService _connectivity;
   final AuthRepository _auth;
   final DateTime Function() _now;
 
   Future<SyncResult>? _inFlightSync;
+  Future<void> _serialQueue = Future<void>.value();
 
   @override
   Stream<List<AppointmentEntity>> watchAppointmentsForDay(DateTime day) {
@@ -67,21 +72,31 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
   @override
   Future<AppointmentEntity> createAppointment(AppointmentInput input) async {
     final created = await _local.createAppointmentOffline(input);
-    if (await _canAttemptRemoteSync()) {
+    final user = await _canAttemptRemoteSync();
+    if (user == null) {
+      return created;
+    }
+
+    return _enqueue(() async {
       try {
-        final remoteId = await _remote.insertEvent(created);
+        final mirrored = await _mirrorUpsertToCalendar(created);
+        final effective = mirrored.entity;
+        await _firestore.upsertAppointment(
+          user.id,
+          CloudAppointmentDocument.fromEntity(effective),
+        );
         final synced = await _local.markAppointmentSynced(
           appointmentId: created.id,
-          googleCalendarEventId: remoteId,
+          googleCalendarEventId: effective.googleCalendarEventId,
+          clearGoogleCalendarEventId: effective.googleCalendarEventId == null,
+          lastModified: effective.lastModified,
         );
-        if (synced != null) {
-          return synced;
-        }
+        return synced ?? effective;
       } catch (_) {
         // Remains queued as `pending_create` in SQLite until next sync pass.
+        return created;
       }
-    }
-    return created;
+    });
   }
 
   @override
@@ -90,33 +105,31 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
     AppointmentInput input,
   ) async {
     final updated = await _local.updateAppointmentOffline(existing, input);
-    if (await _canAttemptRemoteSync()) {
+    final user = await _canAttemptRemoteSync();
+    if (user == null) {
+      return updated;
+    }
+
+    return _enqueue(() async {
       try {
-        if (updated.googleCalendarEventId == null ||
-            updated.googleCalendarEventId!.isEmpty) {
-          final remoteId = await _remote.insertEvent(updated);
-          final synced = await _local.markAppointmentSynced(
-            appointmentId: updated.id,
-            googleCalendarEventId: remoteId,
-          );
-          if (synced != null) {
-            return synced;
-          }
-        } else {
-          await _remote.patchEvent(updated);
-          final synced = await _local.markAppointmentSynced(
-            appointmentId: updated.id,
-            googleCalendarEventId: updated.googleCalendarEventId!,
-          );
-          if (synced != null) {
-            return synced;
-          }
-        }
+        final mirrored = await _mirrorUpsertToCalendar(updated);
+        final effective = mirrored.entity;
+        await _firestore.upsertAppointment(
+          user.id,
+          CloudAppointmentDocument.fromEntity(effective),
+        );
+        final synced = await _local.markAppointmentSynced(
+          appointmentId: updated.id,
+          googleCalendarEventId: effective.googleCalendarEventId,
+          clearGoogleCalendarEventId: effective.googleCalendarEventId == null,
+          lastModified: effective.lastModified,
+        );
+        return synced ?? effective;
       } catch (_) {
         // Remains queued as pending in SQLite until next sync pass.
+        return updated;
       }
-    }
-    return updated;
+    });
   }
 
   @override
@@ -128,27 +141,68 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
       return;
     }
 
-    final eventId = appointment.googleCalendarEventId;
-    if (eventId != null &&
-        eventId.isNotEmpty &&
-        await _canAttemptRemoteSync()) {
+    final user = await _canAttemptRemoteSync();
+    if (user == null) {
+      return;
+    }
+
+    await _enqueue(() async {
       try {
-        await _remote.deleteEvent(eventId);
+        await _mirrorDeleteFromCalendar(appointment.googleCalendarEventId);
+        await _firestore.markAppointmentDeleted(
+          user.id,
+          syncId: appointment.syncId,
+          deletedAt: _truncateToSecondsUtc(_now()),
+          googleCalendarEventId: appointment.googleCalendarEventId,
+        );
         await _local.purgeAppointmentById(appointment.id);
       } catch (_) {
         // Remains queued as `pending_delete` until connectivity returns.
       }
-    }
+    });
   }
 
   @override
-  Future<void> markReminderSent(int appointmentId, {bool sent = true}) {
-    return _local.markReminderSent(appointmentId, sent: sent);
+  Future<void> markReminderSent(int appointmentId, {bool sent = true}) async {
+    final updated = await _local.markReminderSent(appointmentId, sent: sent);
+    if (updated == null) {
+      return;
+    }
+
+    final user = await _canAttemptRemoteSync();
+    if (user == null) {
+      return;
+    }
+
+    await _enqueue(() async {
+      try {
+        await _firestore.upsertAppointment(
+          user.id,
+          CloudAppointmentDocument.fromEntity(updated),
+        );
+        await _local.markAppointmentSynced(
+          appointmentId: updated.id,
+          googleCalendarEventId: updated.googleCalendarEventId,
+          lastModified: updated.lastModified,
+        );
+      } catch (_) {
+        // Remains queued as `pending_update` until next sync pass.
+      }
+    });
   }
 
-  /// Clears stored incremental `syncToken` when changing Google accounts.
+  /// Clears stored sync metadata when changing Google/Firebase accounts.
   Future<void> resetSyncMetadata() {
     return _local.clearSyncToken(clearTimestamp: true);
+  }
+
+  @override
+  Future<int> applyCloudSnapshot(List<CloudAppointmentDocument> documents) {
+    return _enqueue(() async {
+      final stats = await _local.applyCloudAppointments(documents);
+      await _local.saveSyncMetadata(lastSyncTimestamp: _now().toUtc());
+      return stats.totalChanges;
+    });
   }
 
   @override
@@ -158,7 +212,7 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
       return existing;
     }
 
-    final future = _runSynchronize();
+    final future = _enqueue(_runSynchronize);
     _inFlightSync = future;
     future.whenComplete(() {
       if (identical(_inFlightSync, future)) {
@@ -173,8 +227,8 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
       return const SyncResult(skippedReason: 'Sin conexión a internet.');
     }
 
-    final hasAuth = await _ensureSignedIn();
-    if (!hasAuth) {
+    final user = await _ensureSignedInUser();
+    if (user == null) {
       return const SyncResult(
         skippedReason: 'Inicia sesión con Google para sincronizar.',
       );
@@ -185,41 +239,81 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
     var pushedDeleted = 0;
     var pulledUpserted = 0;
     var pulledDeleted = 0;
-    var usedFullResync = false;
+    String? calendarWarning;
 
     try {
-      // 1. Drain local offline mutation queue first.
+      // 1. Fetch Cloud Firestore state so tombstone conflicts and migrations can be resolved.
+      final cloudDocs = await _firestore.fetchAppointments(user.id);
+      final cloudBySyncId = <String, CloudAppointmentDocument>{
+        for (final doc in cloudDocs) doc.syncId: doc,
+      };
+
+      // 2. Drain local offline mutation queue (mirror Calendar best-effort + Firestore).
       final pending = await _local.getPendingSyncAppointments();
+      final handledInQueue = <String>{};
       for (final item in pending) {
+        handledInQueue.add(item.syncId);
+        final remote = cloudBySyncId[item.syncId];
         switch (item.syncStatus) {
           case AppointmentSyncStatus.pendingCreate:
-            final remoteId = await _remote.insertEvent(item);
+            if (remote != null &&
+                remote.deleted &&
+                _secondsAfter(remote.lastModified, item.lastModified)) {
+              await _mirrorDeleteFromCalendar(remote.googleCalendarEventId);
+              await _local.purgeAppointmentById(item.id);
+              pulledDeleted++;
+              break;
+            }
+            final mirrored = await _mirrorUpsertToCalendar(item);
+            calendarWarning ??= mirrored.warning;
+            await _firestore.upsertAppointment(
+              user.id,
+              CloudAppointmentDocument.fromEntity(mirrored.entity),
+            );
             await _local.markAppointmentSynced(
               appointmentId: item.id,
-              googleCalendarEventId: remoteId,
+              googleCalendarEventId: mirrored.entity.googleCalendarEventId,
+              clearGoogleCalendarEventId:
+                  mirrored.entity.googleCalendarEventId == null,
+              lastModified: item.lastModified,
             );
             pushedCreated++;
           case AppointmentSyncStatus.pendingUpdate:
-            if (item.googleCalendarEventId == null ||
-                item.googleCalendarEventId!.isEmpty) {
-              final remoteId = await _remote.insertEvent(item);
-              await _local.markAppointmentSynced(
-                appointmentId: item.id,
-                googleCalendarEventId: remoteId,
+            if (remote != null &&
+                remote.deleted &&
+                _secondsAfter(remote.lastModified, item.lastModified)) {
+              await _mirrorDeleteFromCalendar(
+                item.googleCalendarEventId ?? remote.googleCalendarEventId,
               );
-            } else {
-              await _remote.patchEvent(item);
-              await _local.markAppointmentSynced(
-                appointmentId: item.id,
-                googleCalendarEventId: item.googleCalendarEventId!,
-              );
+              await _local.purgeAppointmentById(item.id);
+              pulledDeleted++;
+              break;
             }
+            final mirrored = await _mirrorUpsertToCalendar(item);
+            calendarWarning ??= mirrored.warning;
+            await _firestore.upsertAppointment(
+              user.id,
+              CloudAppointmentDocument.fromEntity(mirrored.entity),
+            );
+            await _local.markAppointmentSynced(
+              appointmentId: item.id,
+              googleCalendarEventId: mirrored.entity.googleCalendarEventId,
+              clearGoogleCalendarEventId:
+                  mirrored.entity.googleCalendarEventId == null,
+              lastModified: item.lastModified,
+            );
             pushedUpdated++;
           case AppointmentSyncStatus.pendingDelete:
-            final eventId = item.googleCalendarEventId;
-            if (eventId != null && eventId.isNotEmpty) {
-              await _remote.deleteEvent(eventId);
-            }
+            final calendarWarningForDelete = await _mirrorDeleteFromCalendar(
+              item.googleCalendarEventId ?? remote?.googleCalendarEventId,
+            );
+            calendarWarning ??= calendarWarningForDelete;
+            await _firestore.markAppointmentDeleted(
+              user.id,
+              syncId: item.syncId,
+              deletedAt: item.lastModified,
+              googleCalendarEventId: item.googleCalendarEventId,
+            );
             await _local.purgeAppointmentById(item.id);
             pushedDeleted++;
           case AppointmentSyncStatus.synced:
@@ -227,60 +321,47 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
         }
       }
 
-      // 2. Pull incremental changes from Google Calendar (with 410 recovery).
-      final metadata = await _local.getSyncMetadata();
-      var syncToken = metadata.syncToken;
-      CalendarDeltaPage deltaPage;
+      // 3. Migrate pre-existing synced local appointments not yet present in Firestore.
+      final activeLocal = await _local.getAllActiveAppointments();
+      for (final item in activeLocal) {
+        if (item.syncStatus != AppointmentSyncStatus.synced ||
+            handledInQueue.contains(item.syncId) ||
+            cloudBySyncId.containsKey(item.syncId)) {
+          continue;
+        }
 
-      try {
-        deltaPage = await _remote.listEventsDelta(
-          syncToken: syncToken,
-          timeMin: syncToken == null
-              ? _now().subtract(AppConstants.initialSyncLookback)
-              : null,
-        );
-      } on SyncTokenExpiredException {
-        await _local.clearSyncToken();
-        syncToken = null;
-        usedFullResync = true;
-        deltaPage = await _remote.listEventsDelta(
-          syncToken: null,
-          timeMin: _now().subtract(AppConstants.initialSyncLookback),
-        );
-      }
-
-      for (final remoteEvent in deltaPage.events) {
-        if (remoteEvent.isCancelled) {
-          final removed = await _local.deleteByGoogleEventId(remoteEvent.id);
-          if (removed) {
-            pulledDeleted++;
+        var effective = item;
+        if (effective.googleCalendarEventId == null ||
+            effective.googleCalendarEventId!.isEmpty) {
+          final mirrored = await _mirrorUpsertToCalendar(effective);
+          calendarWarning ??= mirrored.warning;
+          effective = mirrored.entity;
+          if (effective.googleCalendarEventId != null) {
+            await _local.markAppointmentSynced(
+              appointmentId: effective.id,
+              googleCalendarEventId: effective.googleCalendarEventId,
+              lastModified: effective.lastModified,
+            );
           }
-          continue;
         }
 
-        final start = remoteEvent.startTime;
-        final end = remoteEvent.endTime;
-        if (start == null || end == null) {
-          continue;
-        }
-
-        final changed = await _local.upsertFromRemoteEvent(
-          googleEventId: remoteEvent.id,
-          summary: remoteEvent.summary,
-          description: remoteEvent.description,
-          startTime: start,
-          endTime: end,
+        await _firestore.upsertAppointment(
+          user.id,
+          CloudAppointmentDocument.fromEntity(effective),
         );
-        if (changed) {
-          pulledUpserted++;
-        }
+        pushedCreated++;
       }
+
+      // 4. Re-apply latest Cloud Firestore state (including any remote deletions).
+      final latestCloudDocs = pushedCreated + pushedUpdated + pushedDeleted > 0
+          ? await _firestore.fetchAppointments(user.id)
+          : cloudDocs;
+      final pullStats = await _local.applyCloudAppointments(latestCloudDocs);
+      pulledUpserted += pullStats.upserted;
+      pulledDeleted += pullStats.deleted;
 
       final syncedAt = _now().toUtc();
-      await _local.saveSyncMetadata(
-        syncToken: deltaPage.nextSyncToken ?? syncToken,
-        lastSyncTimestamp: syncedAt,
-      );
+      await _local.saveSyncMetadata(lastSyncTimestamp: syncedAt);
 
       return SyncResult(
         pushedCreated: pushedCreated,
@@ -288,51 +369,139 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
         pushedDeleted: pushedDeleted,
         pulledUpserted: pulledUpserted,
         pulledDeleted: pulledDeleted,
-        usedFullResync: usedFullResync,
         syncedAt: syncedAt.toLocal(),
+        errorMessage: calendarWarning,
       );
-    } on CalendarAuthUnavailableException {
+    } catch (_) {
       return const SyncResult(
-        skippedReason: 'Sesión de Google Calendar expirada o sin permisos.',
+        errorMessage: 'No se pudo completar la sincronización con la nube.',
+      );
+    }
+  }
+
+  Future<T> _enqueue<T>(Future<T> Function() action) {
+    final completer = Completer<T>();
+    _serialQueue = _serialQueue.then((_) async {
+      try {
+        final result = await action();
+        if (!completer.isCompleted) {
+          completer.complete(result);
+        }
+      } catch (error, stackTrace) {
+        if (!completer.isCompleted) {
+          completer.completeError(error, stackTrace);
+        }
+      }
+    });
+    return completer.future;
+  }
+
+  Future<({AppointmentEntity entity, String? warning})> _mirrorUpsertToCalendar(
+    AppointmentEntity entity,
+  ) async {
+    try {
+      final eventId = entity.googleCalendarEventId;
+      if (eventId == null || eventId.isEmpty) {
+        final remoteId = await _calendar.insertEvent(entity);
+        return (
+          entity: entity.copyWith(googleCalendarEventId: remoteId),
+          warning: null,
+        );
+      }
+
+      try {
+        await _calendar.patchEvent(entity);
+        return (entity: entity, warning: null);
+      } on calendar.DetailedApiRequestError catch (error) {
+        if (error.status == 404 || error.status == 410) {
+          final remoteId = await _calendar.insertEvent(entity);
+          return (
+            entity: entity.copyWith(googleCalendarEventId: remoteId),
+            warning: null,
+          );
+        }
+        rethrow;
+      }
+    } on CalendarAuthUnavailableException {
+      return (
+        entity: entity,
+        warning:
+            'Firestore sincronizado, pero falta permiso de Google Calendar.',
       );
     } on calendar.DetailedApiRequestError catch (error) {
       if (error.status == 403) {
-        return const SyncResult(
-          errorMessage: 'Google Calendar API sin permisos o no habilitada en Google Cloud (HTTP 403).',
+        return (
+          entity: entity,
+          warning: 'Firestore sincronizado; Google Calendar API sin permisos (HTTP 403).',
         );
       }
       if (error.status == 401) {
-        return const SyncResult(
-          errorMessage: 'Sesión de Google Calendar expirada. Vuelve a conectar tu cuenta (HTTP 401).',
+        return (
+          entity: entity,
+          warning: 'Firestore sincronizado; sesión de Google Calendar expirada (HTTP 401).',
         );
       }
-      return SyncResult(
-        errorMessage:
-            'Error al sincronizar con Google Calendar (HTTP ${error.status}).',
-      );
+      return (entity: entity, warning: null);
     } catch (_) {
-      return const SyncResult(
-        errorMessage: 'No se pudo completar la sincronización con Calendar.',
-      );
+      return (entity: entity, warning: null);
     }
   }
 
-  Future<bool> _canAttemptRemoteSync() async {
+  Future<String?> _mirrorDeleteFromCalendar(String? eventId) async {
+    if (eventId == null || eventId.isEmpty) {
+      return null;
+    }
+    try {
+      await _calendar.deleteEvent(eventId);
+      return null;
+    } on CalendarAuthUnavailableException {
+      return 'Firestore sincronizado, pero falta permiso de Google Calendar.';
+    } on calendar.DetailedApiRequestError catch (error) {
+      if (error.status == 404 || error.status == 410) {
+        return null;
+      }
+      if (error.status == 403 || error.status == 401) {
+        return 'Firestore sincronizado; error de permisos en Google Calendar (HTTP ${error.status}).';
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<AuthUser?> _canAttemptRemoteSync() async {
     if (!await _connectivity.isOnline) {
-      return false;
+      return null;
     }
-    return _ensureSignedIn();
+    return _ensureSignedInUser();
   }
 
-  Future<bool> _ensureSignedIn() async {
-    if (_auth.currentUser != null) {
-      return true;
+  Future<AuthUser?> _ensureSignedInUser() async {
+    final current = _auth.currentUser;
+    if (current != null && current.id.isNotEmpty) {
+      return current;
     }
     try {
       final restored = await _auth.signInSilently();
-      return restored != null;
+      if (restored != null && restored.id.isNotEmpty) {
+        return restored;
+      }
+      return null;
     } catch (_) {
-      return false;
+      return null;
     }
+  }
+
+  bool _secondsAfter(DateTime a, DateTime b) {
+    return (a.toUtc().millisecondsSinceEpoch ~/ 1000) >
+        (b.toUtc().millisecondsSinceEpoch ~/ 1000);
+  }
+
+  DateTime _truncateToSecondsUtc(DateTime value) {
+    final utc = value.toUtc();
+    return DateTime.fromMillisecondsSinceEpoch(
+      (utc.millisecondsSinceEpoch ~/ 1000) * 1000,
+      isUtc: true,
+    );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:nudge/features/appointments/data/firestore_appointments_datasource.dart';
 import 'package:nudge/features/appointments/domain/entities/appointment_entity.dart';
 
 /// Input payload used when creating or updating an appointment.
@@ -81,4 +82,6 @@ abstract interface class AppointmentsRepository {
   Future<void> markReminderSent(int appointmentId, {bool sent = true});
 
   Future<SyncResult> synchronize();
+
+  Future<int> applyCloudSnapshot(List<CloudAppointmentDocument> documents);
 }

@@ -1,5 +1,24 @@
+import 'dart:math';
+
 import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/utils/phone_sanitizer.dart';
+
+/// Generates a globally unique, Firestore-safe appointment sync identifier.
+String generateAppointmentSyncId([Random? random]) {
+  final rng = random ?? Random.secure();
+  final bytes = List<int>.generate(16, (_) => rng.nextInt(256));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+  final buffer = StringBuffer();
+  for (var i = 0; i < 16; i++) {
+    if (i == 4 || i == 6 || i == 8 || i == 10) {
+      buffer.write('-');
+    }
+    buffer.write(bytes[i].toRadixString(16).padLeft(2, '0'));
+  }
+  return buffer.toString();
+}
 
 /// Synchronization state for an appointment stored in SQLite.
 enum AppointmentSyncStatus {
@@ -28,6 +47,7 @@ enum AppointmentSyncStatus {
 class AppointmentEntity {
   const AppointmentEntity({
     required this.id,
+    required this.syncId,
     this.googleCalendarEventId,
     required this.clientId,
     required this.clientName,
@@ -44,6 +64,7 @@ class AppointmentEntity {
   });
 
   final int id;
+  final String syncId;
   final String? googleCalendarEventId;
   final int clientId;
   final String clientName;
@@ -62,6 +83,7 @@ class AppointmentEntity {
 
   AppointmentEntity copyWith({
     int? id,
+    String? syncId,
     String? googleCalendarEventId,
     bool clearGoogleCalendarEventId = false,
     int? clientId,
@@ -80,6 +102,7 @@ class AppointmentEntity {
   }) {
     return AppointmentEntity(
       id: id ?? this.id,
+      syncId: syncId ?? this.syncId,
       googleCalendarEventId: clearGoogleCalendarEventId
           ? null
           : (googleCalendarEventId ?? this.googleCalendarEventId),

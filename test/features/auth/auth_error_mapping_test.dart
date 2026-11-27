@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nudge/features/auth/presentation/auth_controller.dart';
@@ -61,5 +62,42 @@ void main() {
         'No fue posible iniciar sesión con Google.',
       );
     });
+
+    test(
+      'maps FirebaseAuthException and Firebase configuration StateError',
+      () {
+        expect(
+          mapSignInErrorMessage(
+            FirebaseAuthException(code: 'invalid-credential'),
+          ),
+          contains('Firebase Auth'),
+        );
+        expect(
+          mapSignInErrorMessage(
+            FirebaseAuthException(code: 'network-request-failed'),
+          ),
+          'Sin conexión con Firebase Auth. Verifica tu internet.',
+        );
+        expect(
+          mapSignInErrorMessage(
+            FirebaseAuthException(code: 'operation-not-allowed'),
+          ),
+          contains('Firebase Authentication'),
+        );
+        expect(
+          mapSignInErrorMessage(FirebaseAuthException(code: 'custom-code')),
+          'No fue posible autenticar con Firebase (custom-code).',
+        );
+        expect(
+          mapSignInErrorMessage(
+            StateError(
+              'Firebase no está configurado en esta compilación '
+              '(falta google-services.json).',
+            ),
+          ),
+          contains('google-services.json'),
+        );
+      },
+    );
   });
 }

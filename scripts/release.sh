@@ -39,6 +39,12 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
+if [[ ! -f "android/app/google-services.json" ]]; then
+  echo "Error: falta android/app/google-services.json para compilar con Firebase." >&2
+  echo "Descárgalo desde Firebase Console y colócalo en android/app/google-services.json antes de publicar." >&2
+  exit 1
+fi
+
 echo "==> Verificando dependencias, formato, análisis y pruebas..."
 flutter pub get
 dart format --output=none --set-exit-if-changed .

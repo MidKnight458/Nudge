@@ -29,18 +29,14 @@ class AgendaScreen extends ConsumerStatefulWidget {
 
 class _AgendaScreenState extends ConsumerState<AgendaScreen>
     with WidgetsBindingObserver {
-  Timer? _foregroundSyncTimer;
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _startForegroundSyncTimer();
   }
 
   @override
   void dispose() {
-    _stopForegroundSyncTimer();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -48,27 +44,8 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _startForegroundSyncTimer();
       _syncInBackgroundIfReady();
-    } else if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.detached) {
-      _stopForegroundSyncTimer();
     }
-  }
-
-  void _startForegroundSyncTimer() {
-    _foregroundSyncTimer?.cancel();
-    _foregroundSyncTimer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => _syncInBackgroundIfReady(),
-    );
-  }
-
-  void _stopForegroundSyncTimer() {
-    _foregroundSyncTimer?.cancel();
-    _foregroundSyncTimer = null;
   }
 
   void _syncInBackgroundIfReady() {
@@ -334,18 +311,18 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
           : 'Modo offline';
     }
     if (!authState.isSignedIn) {
-      return 'Solo local · Conecta Google Calendar';
+      return 'Solo local · Conecta tu cuenta';
     }
     if (syncState.isSyncing) {
-      return 'Sincronizando con Google Calendar...';
+      return 'Sincronizando en la nube...';
     }
     if (syncState.lastError != null) {
       return 'Error de sincronización · Toca para reintentar';
     }
     if (syncState.lastSyncAt != null) {
-      return 'Sincronizado ${DateFormatters.formatTime(syncState.lastSyncAt!)}';
+      return 'Tiempo real · ${DateFormatters.formatTime(syncState.lastSyncAt!)}';
     }
-    return authState.user?.email ?? 'Google Calendar conectado';
+    return authState.user?.email ?? 'Sincronización en tiempo real';
   }
 
   Future<void> _triggerManualSync(BuildContext screenContext) async {
@@ -426,7 +403,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Google Calendar Sync',
+                    'Sincronización en la nube',
                     style: theme.textTheme.titleLarge,
                   ),
                   const SizedBox(height: 12),
@@ -449,9 +426,10 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
                       subtitle: Text(
                         auth.isSignedIn
                             ? '${auth.user!.email}\n'
-                                  '${sync.lastSyncAt != null ? 'Última sync: ${DateFormatters.formatCompactDateTime(sync.lastSyncAt!)}' : 'Aún no sincronizado'}'
+                                  'Cloud Firestore (tiempo real) + espejo en Google Calendar\n'
+                                  '${sync.lastSyncAt != null ? 'Última sync: ${DateFormatters.formatCompactDateTime(sync.lastSyncAt!)}' : 'Sincronización activa'}'
                                   '${pending > 0 ? ' · $pending pendientes' : ''}'
-                            : 'Conecta tu cuenta de Google para sincronizar citas en dos vías.',
+                            : 'Conecta tu cuenta de Google para sincronizar citas en tiempo real (Firebase) y reflejarlas en Google Calendar.',
                       ),
                     ),
                   ),

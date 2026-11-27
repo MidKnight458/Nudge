@@ -1,8 +1,19 @@
 import 'package:drift/drift.dart';
 import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/database/app_database.dart';
+import 'package:nudge/features/appointments/data/firestore_appointments_datasource.dart';
 import 'package:nudge/features/appointments/domain/appointments_repository.dart';
 import 'package:nudge/features/appointments/domain/entities/appointment_entity.dart';
+
+/// Result returned when applying a batch of Cloud Firestore appointment documents.
+class CloudApplyResult {
+  const CloudApplyResult({required this.upserted, required this.deleted});
+
+  final int upserted;
+  final int deleted;
+
+  int get totalChanges => upserted + deleted;
+}
 
 /// Drift/SQLite local data source for clients, appointments, and sync metadata.
 class LocalAppointmentsDatasource {
@@ -152,19 +163,20 @@ class LocalAppointmentsDatasource {
         googleContactId: input.clientGoogleContactId,
       );
 
-      final now = DateTime.now().toUtc();
+      final now = _truncateUtcSeconds(DateTime.now());
       final cleanNotes = input.notes?.trim();
       final insertedId = await _db
           .into(_db.appointments)
           .insert(
             AppointmentsCompanion.insert(
+              syncId: generateAppointmentSyncId(),
               clientId: clientId,
               title: input.title.trim(),
               notes: Value(
                 (cleanNotes == null || cleanNotes.isEmpty) ? null : cleanNotes,
               ),
-              startTime: input.startTime.toUtc(),
-              endTime: input.endTime.toUtc(),
+              startTime: _truncateUtcSeconds(input.startTime),
+              endTime: _truncateUtcSeconds(input.endTime),
               reminderSent: const Value(false),
               syncStatus: const Value(AppConstants.syncStatusPendingCreate),
               lastModified: now,
@@ -188,12 +200,13 @@ class LocalAppointmentsDatasource {
         googleContactId: input.clientGoogleContactId,
       );
 
-      final nextSyncStatus = existing.googleCalendarEventId == null
+      final nextSyncStatus =
+          existing.syncStatus == AppointmentSyncStatus.pendingCreate
           ? AppConstants.syncStatusPendingCreate
           : AppConstants.syncStatusPendingUpdate;
 
       final cleanNotes = input.notes?.trim();
-      final now = DateTime.now().toUtc();
+      final now = _truncateUtcSeconds(DateTime.now());
 
       await (_db.update(
         _db.appointments,
@@ -204,8 +217,8 @@ class LocalAppointmentsDatasource {
           notes: Value(
             (cleanNotes == null || cleanNotes.isEmpty) ? null : cleanNotes,
           ),
-          startTime: Value(input.startTime.toUtc()),
-          endTime: Value(input.endTime.toUtc()),
+          startTime: Value(_truncateUtcSeconds(input.startTime)),
+          endTime: Value(_truncateUtcSeconds(input.endTime)),
           syncStatus: Value(nextSyncStatus),
           lastModified: Value(now),
         ),
@@ -215,7 +228,8 @@ class LocalAppointmentsDatasource {
     });
   }
 
-  /// Marks a synced appointment as `pending_delete`, or purges an unsynced row.
+  /// Marks a synced/uploaded appointment as `pending_delete`, or purges a
+  /// purely local `pending_create` row that has never reached Firestore.
   Future<bool> markAppointmentDeletedOffline(int appointmentId) async {
     final row =
         await (_db.select(_db.appointments)
@@ -226,8 +240,9 @@ class LocalAppointmentsDatasource {
       return false;
     }
 
-    if (row.googleCalendarEventId == null ||
-        row.googleCalendarEventId!.isEmpty) {
+    if (row.syncStatus == AppConstants.syncStatusPendingCreate &&
+        (row.googleCalendarEventId == null ||
+            row.googleCalendarEventId!.isEmpty)) {
       await (_db.delete(
         _db.appointments,
       )..where((a) => a.id.equals(appointmentId))).go();
@@ -239,7 +254,7 @@ class LocalAppointmentsDatasource {
     )..where((a) => a.id.equals(appointmentId))).write(
       AppointmentsCompanion(
         syncStatus: const Value(AppConstants.syncStatusPendingDelete),
-        lastModified: Value(DateTime.now().toUtc()),
+        lastModified: Value(_truncateUtcSeconds(DateTime.now())),
       ),
     );
     return true;
@@ -262,11 +277,35 @@ class LocalAppointmentsDatasource {
     return deletedCount > 0;
   }
 
-  /// Updates the `reminderSent` flag on a local appointment.
-  Future<void> markReminderSent(int appointmentId, {bool sent = true}) async {
-    await (_db.update(_db.appointments)
-          ..where((a) => a.id.equals(appointmentId)))
-        .write(AppointmentsCompanion(reminderSent: Value(sent)));
+  /// Updates the `reminderSent` flag on a local appointment and queues sync.
+  Future<AppointmentEntity?> markReminderSent(
+    int appointmentId, {
+    bool sent = true,
+  }) async {
+    final row =
+        await (_db.select(_db.appointments)
+              ..where((a) => a.id.equals(appointmentId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (row == null || row.syncStatus == AppConstants.syncStatusPendingDelete) {
+      return null;
+    }
+
+    final nextSyncStatus =
+        row.syncStatus == AppConstants.syncStatusPendingCreate
+        ? AppConstants.syncStatusPendingCreate
+        : AppConstants.syncStatusPendingUpdate;
+
+    await (_db.update(
+      _db.appointments,
+    )..where((a) => a.id.equals(appointmentId))).write(
+      AppointmentsCompanion(
+        reminderSent: Value(sent),
+        syncStatus: Value(nextSyncStatus),
+        lastModified: Value(_truncateUtcSeconds(DateTime.now())),
+      ),
+    );
+    return getAppointmentById(appointmentId);
   }
 
   /// Returns all appointments whose `syncStatus` is not `'synced'`.
@@ -281,21 +320,202 @@ class LocalAppointmentsDatasource {
     return rows.map(_mapJoinedRow).toList(growable: false);
   }
 
-  /// Marks an appointment as synchronized and attaches its Google Calendar ID.
+  /// Returns all non-deleted appointments stored locally.
+  Future<List<AppointmentEntity>> getAllActiveAppointments() async {
+    final query = _baseJoinedQuery()
+      ..where(
+        _db.appointments.syncStatus
+            .equals(AppConstants.syncStatusPendingDelete)
+            .not(),
+      )
+      ..orderBy([OrderingTerm.asc(_db.appointments.id)]);
+
+    final rows = await query.get();
+    return rows.map(_mapJoinedRow).toList(growable: false);
+  }
+
+  /// Marks an appointment as synchronized and updates its metadata.
   Future<AppointmentEntity?> markAppointmentSynced({
     required int appointmentId,
-    required String googleCalendarEventId,
+    String? googleCalendarEventId,
+    bool clearGoogleCalendarEventId = false,
+    DateTime? lastModified,
   }) async {
     await (_db.update(
       _db.appointments,
     )..where((a) => a.id.equals(appointmentId))).write(
       AppointmentsCompanion(
-        googleCalendarEventId: Value(googleCalendarEventId),
+        googleCalendarEventId: clearGoogleCalendarEventId
+            ? const Value(null)
+            : (googleCalendarEventId != null
+                  ? Value(googleCalendarEventId)
+                  : const Value.absent()),
         syncStatus: const Value(AppConstants.syncStatusSynced),
-        lastModified: Value(DateTime.now().toUtc()),
+        lastModified: Value(
+          _truncateUtcSeconds(lastModified ?? DateTime.now()),
+        ),
       ),
     );
     return getAppointmentById(appointmentId);
+  }
+
+  /// Merges a Cloud Firestore snapshot into Drift without duplicating rows.
+  Future<CloudApplyResult> applyCloudAppointments(
+    List<CloudAppointmentDocument> documents,
+  ) async {
+    if (documents.isEmpty) {
+      return const CloudApplyResult(upserted: 0, deleted: 0);
+    }
+
+    return _db.transaction(() async {
+      var upserted = 0;
+      var deleted = 0;
+
+      for (final doc in documents) {
+        if (doc.syncId.isEmpty) {
+          continue;
+        }
+
+        var existing =
+            await (_db.select(_db.appointments)
+                  ..where((a) => a.syncId.equals(doc.syncId))
+                  ..limit(1))
+                .getSingleOrNull();
+
+        if (existing == null &&
+            doc.googleCalendarEventId != null &&
+            doc.googleCalendarEventId!.isNotEmpty) {
+          existing =
+              await (_db.select(_db.appointments)
+                    ..where(
+                      (a) => a.googleCalendarEventId.equals(
+                        doc.googleCalendarEventId!,
+                      ),
+                    )
+                    ..limit(1))
+                  .getSingleOrNull();
+        }
+
+        if (doc.deleted) {
+          if (existing != null) {
+            final keepLocalPending =
+                (existing.syncStatus == AppConstants.syncStatusPendingCreate ||
+                    existing.syncStatus ==
+                        AppConstants.syncStatusPendingUpdate) &&
+                _secondsAfter(existing.lastModified, doc.lastModified);
+            if (!keepLocalPending) {
+              await (_db.delete(
+                _db.appointments,
+              )..where((a) => a.id.equals(existing!.id))).go();
+              deleted++;
+            }
+          }
+          continue;
+        }
+
+        if (doc.title.trim().isEmpty && doc.clientName.trim().isEmpty) {
+          continue;
+        }
+
+        final startUtc = _truncateUtcSeconds(doc.startTime);
+        final endUtc = _truncateUtcSeconds(doc.endTime);
+        final modifiedUtc = _truncateUtcSeconds(doc.lastModified);
+        final remoteNotes = _nullIfEmpty(doc.notes);
+
+        // Guard against unique `googleCalendarEventId` constraint collisions if
+        // another local record with a different `syncId` already holds this ID.
+        final current = existing;
+        var effectiveCalendarId = doc.googleCalendarEventId;
+        if (effectiveCalendarId != null && effectiveCalendarId.isNotEmpty) {
+          final targetCalendarId = effectiveCalendarId;
+          final holder =
+              await (_db.select(_db.appointments)
+                    ..where(
+                      (a) => a.googleCalendarEventId.equals(targetCalendarId),
+                    )
+                    ..limit(1))
+                  .getSingleOrNull();
+          if (holder != null && (current == null || holder.id != current.id)) {
+            effectiveCalendarId = null;
+          }
+        }
+
+        if (current != null) {
+          if (current.syncStatus != AppConstants.syncStatusSynced &&
+              _secondsAfter(current.lastModified, modifiedUtc)) {
+            continue;
+          }
+
+          final clientId = await upsertClient(
+            name: doc.clientName.isNotEmpty ? doc.clientName : 'Cliente',
+            rawPhone: doc.clientRawPhone,
+            phoneE164: doc.clientPhoneE164,
+            googleContactId: doc.clientGoogleContactId,
+          );
+
+          final cleanTitle = doc.title.trim();
+          final sameData =
+              current.syncId == doc.syncId &&
+              current.googleCalendarEventId == effectiveCalendarId &&
+              current.clientId == clientId &&
+              current.title == cleanTitle &&
+              current.notes == remoteNotes &&
+              _sameUnixSecond(current.startTime, startUtc) &&
+              _sameUnixSecond(current.endTime, endUtc) &&
+              current.reminderSent == doc.reminderSent &&
+              current.syncStatus == AppConstants.syncStatusSynced;
+
+          if (sameData) {
+            continue;
+          }
+
+          await (_db.update(
+            _db.appointments,
+          )..where((a) => a.id.equals(current.id))).write(
+            AppointmentsCompanion(
+              syncId: Value(doc.syncId),
+              googleCalendarEventId: Value(effectiveCalendarId),
+              clientId: Value(clientId),
+              title: Value(cleanTitle),
+              notes: Value(remoteNotes),
+              startTime: Value(startUtc),
+              endTime: Value(endUtc),
+              reminderSent: Value(doc.reminderSent),
+              syncStatus: const Value(AppConstants.syncStatusSynced),
+              lastModified: Value(modifiedUtc),
+            ),
+          );
+          upserted++;
+        } else {
+          final clientId = await upsertClient(
+            name: doc.clientName.isNotEmpty ? doc.clientName : 'Cliente',
+            rawPhone: doc.clientRawPhone,
+            phoneE164: doc.clientPhoneE164,
+            googleContactId: doc.clientGoogleContactId,
+          );
+
+          await _db
+              .into(_db.appointments)
+              .insert(
+                AppointmentsCompanion.insert(
+                  syncId: doc.syncId,
+                  googleCalendarEventId: Value(effectiveCalendarId),
+                  clientId: clientId,
+                  title: doc.title.trim(),
+                  notes: Value(remoteNotes),
+                  startTime: startUtc,
+                  endTime: endUtc,
+                  reminderSent: Value(doc.reminderSent),
+                  syncStatus: const Value(AppConstants.syncStatusSynced),
+                  lastModified: modifiedUtc,
+                ),
+              );
+          upserted++;
+        }
+      }
+
+      return CloudApplyResult(upserted: upserted, deleted: deleted);
+    });
   }
 
   /// Inserts or updates a local appointment from a remote Google Calendar event.
@@ -350,15 +570,16 @@ class LocalAppointmentsDatasource {
             .into(_db.appointments)
             .insert(
               AppointmentsCompanion.insert(
+                syncId: 'gcal-${googleEventId.replaceAll('/', '_')}',
                 googleCalendarEventId: Value(googleEventId),
                 clientId: clientId,
                 title: decoded.title,
                 notes: Value(decoded.notes),
-                startTime: startTime.toUtc(),
-                endTime: endTime.toUtc(),
+                startTime: _truncateUtcSeconds(startTime),
+                endTime: _truncateUtcSeconds(endTime),
                 reminderSent: const Value(false),
                 syncStatus: const Value(AppConstants.syncStatusSynced),
-                lastModified: now,
+                lastModified: _truncateUtcSeconds(now),
               ),
             );
       }
@@ -435,6 +656,7 @@ class LocalAppointmentsDatasource {
 
     return AppointmentEntity(
       id: appointment.id,
+      syncId: appointment.syncId,
       googleCalendarEventId: appointment.googleCalendarEventId,
       clientId: client.id,
       clientName: client.name,
@@ -449,5 +671,31 @@ class LocalAppointmentsDatasource {
       syncStatus: AppointmentSyncStatus.fromDbValue(appointment.syncStatus),
       lastModified: appointment.lastModified.toLocal(),
     );
+  }
+
+  DateTime _truncateUtcSeconds(DateTime value) {
+    final utc = value.toUtc();
+    return DateTime.fromMillisecondsSinceEpoch(
+      (utc.millisecondsSinceEpoch ~/ 1000) * 1000,
+      isUtc: true,
+    );
+  }
+
+  bool _sameUnixSecond(DateTime a, DateTime b) {
+    return (a.toUtc().millisecondsSinceEpoch ~/ 1000) ==
+        (b.toUtc().millisecondsSinceEpoch ~/ 1000);
+  }
+
+  bool _secondsAfter(DateTime a, DateTime b) {
+    return (a.toUtc().millisecondsSinceEpoch ~/ 1000) >
+        (b.toUtc().millisecondsSinceEpoch ~/ 1000);
+  }
+
+  String? _nullIfEmpty(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return null;
+    }
+    return trimmed;
   }
 }
