@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/features/appointments/presentation/screens/agenda_screen.dart';
+import 'package:nudge/features/appointments/presentation/screens/archive_screen.dart';
 import 'package:nudge/features/clients/presentation/screens/clients_screen.dart';
 import 'package:nudge/features/settings/data/settings_repository.dart';
 import 'package:nudge/features/settings/presentation/screens/settings_screen.dart';
 
-/// Top-level Pixel Material 3 navigation shell connecting Agenda, Clients,
-/// and Settings.
+/// Top-level Pixel Material 3 navigation shell connecting Agenda, Archivo,
+/// Clients, and Settings.
 class HomeShellScreen extends ConsumerStatefulWidget {
   const HomeShellScreen({super.key});
 
@@ -30,6 +31,7 @@ class _HomeShellScreenState extends ConsumerState<HomeShellScreen> {
         index: _selectedIndex,
         children: const <Widget>[
           AgendaScreen(),
+          ArchiveScreen(),
           ClientsScreen(),
           SettingsScreen(),
         ],
@@ -48,6 +50,11 @@ class _HomeShellScreenState extends ConsumerState<HomeShellScreen> {
             icon: Icon(Icons.calendar_month_outlined),
             selectedIcon: Icon(Icons.calendar_month_rounded),
             label: 'Agenda',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history_rounded),
+            label: 'Archivo',
           ),
           NavigationDestination(
             icon: const Icon(Icons.people_outline_rounded),

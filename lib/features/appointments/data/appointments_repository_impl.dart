@@ -67,6 +67,11 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
   }
 
   @override
+  Stream<List<AppointmentEntity>> watchAllActiveAppointments() {
+    return _local.watchAllActiveAppointments();
+  }
+
+  @override
   Stream<int> watchPendingSyncCount() => _local.watchPendingSyncCount();
 
   @override

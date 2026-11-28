@@ -71,6 +71,13 @@ final nextUpcomingDayProvider =
       return repository.watchNextUpcomingDayAppointments(selectedDate);
     });
 
+/// Reactive stream of all active appointments ordered newest first.
+final allActiveAppointmentsProvider = StreamProvider<List<AppointmentEntity>>((
+  Ref ref,
+) {
+  return ref.watch(appointmentsRepositoryProvider).watchAllActiveAppointments();
+});
+
 /// Reactive list of all appointments scheduled for tomorrow.
 final tomorrowAppointmentsProvider = StreamProvider<List<AppointmentEntity>>((
   Ref ref,

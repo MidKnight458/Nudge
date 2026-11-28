@@ -728,6 +728,25 @@ class LocalAppointmentsDatasource {
     return trimmed;
   }
 
+  /// Watches all active (non-deleted) appointments ordered newest first.
+  Stream<List<AppointmentEntity>> watchAllActiveAppointments() {
+    final query = _baseJoinedQuery()
+      ..where(
+        _db.appointments.syncStatus
+            .equals(AppConstants.syncStatusPendingDelete)
+            .not(),
+      )
+      ..orderBy([
+        OrderingTerm.desc(_db.appointments.startTime),
+        OrderingTerm.desc(_db.appointments.id),
+      ]);
+
+    return query.watch().map(
+      (List<TypedResult> rows) =>
+          rows.map(_mapJoinedRow).toList(growable: false),
+    );
+  }
+
   /// Watches all appointments for the earliest future day strictly after [afterDay].
   Stream<({DateTime? date, List<AppointmentEntity> appointments})>
   watchNextUpcomingDayAppointments(DateTime afterDay) {

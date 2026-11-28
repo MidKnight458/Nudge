@@ -364,122 +364,127 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
             final pending =
                 sheetRef.watch(pendingSyncCountProvider).valueOrNull ?? 0;
 
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('Cuenta de Google', style: theme.textTheme.titleLarge),
-                  const SizedBox(height: 12),
-                  Card(
-                    child: ListTile(
-                      leading: _GoogleAccountAvatar(
-                        user: auth.user,
-                        radius: 22,
-                      ),
-                      title: Text(
-                        auth.isSignedIn
-                            ? (auth.user?.displayName ?? auth.user!.email)
-                            : 'Sin cuenta vinculada',
-                      ),
-                      subtitle: Text(
-                        auth.isSignedIn
-                            ? '${auth.user!.email}\n'
-                                  '${sync.lastSyncAt != null ? 'Última sincronización: ${DateFormatters.formatCompactDateTime(sync.lastSyncAt!)}' : 'Sincronización activa'}'
-                                  '${pending > 0 ? ' · $pending pendientes' : ''}'
-                            : 'Conecta tu cuenta de Google para respaldar y sincronizar tus datos.',
-                      ),
-                    ),
-                  ),
-                  if (auth.errorMessage != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      auth.errorMessage!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.error,
+            return SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text('Cuenta de Google', style: theme.textTheme.titleLarge),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: ListTile(
+                        leading: _GoogleAccountAvatar(
+                          user: auth.user,
+                          radius: 22,
+                        ),
+                        title: Text(
+                          auth.isSignedIn
+                              ? (auth.user?.displayName ?? auth.user!.email)
+                              : 'Sin cuenta vinculada',
+                        ),
+                        subtitle: Text(
+                          auth.isSignedIn
+                              ? '${auth.user!.email}\n'
+                                    '${sync.lastSyncAt != null ? 'Última sincronización: ${DateFormatters.formatCompactDateTime(sync.lastSyncAt!)}' : 'Sincronización activa'}'
+                                    '${pending > 0 ? ' · $pending pendientes' : ''}'
+                              : 'Conecta tu cuenta de Google para respaldar y sincronizar tus datos.',
+                        ),
                       ),
                     ),
+                    if (auth.errorMessage != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        auth.errorMessage!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.error,
+                        ),
+                      ),
+                    ],
+                    if (auth.isSignedIn && sync.lastError != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        sync.lastError!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.error,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    if (auth.isSignedIn) ...[
+                      FilledButton.icon(
+                        onPressed: sync.isSyncing
+                            ? null
+                            : () async {
+                                Navigator.of(context).pop();
+                                await _triggerManualSync(screenContext);
+                              },
+                        icon: const Icon(Icons.sync_rounded),
+                        label: const Text('Sincronizar ahora'),
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: auth.isLoading
+                            ? null
+                            : () async {
+                                HapticFeedback.lightImpact();
+                                final switched = await sheetRef
+                                    .read(authControllerProvider.notifier)
+                                    .switchAccount();
+                                if (switched && context.mounted) {
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                        icon: const Icon(Icons.switch_account_outlined),
+                        label: const Text('Cambiar cuenta'),
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: auth.isLoading
+                            ? null
+                            : () async {
+                                HapticFeedback.lightImpact();
+                                await sheetRef
+                                    .read(authControllerProvider.notifier)
+                                    .signOut();
+                                if (context.mounted) {
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: colorScheme.error,
+                        ),
+                        icon: const Icon(Icons.logout_rounded),
+                        label: const Text('Desconectar cuenta'),
+                      ),
+                    ] else
+                      FilledButton.icon(
+                        onPressed: auth.isLoading
+                            ? null
+                            : () async {
+                                HapticFeedback.lightImpact();
+                                final signedIn = await sheetRef
+                                    .read(authControllerProvider.notifier)
+                                    .signIn();
+                                if (signedIn && context.mounted) {
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                        icon: auth.isLoading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.login_rounded),
+                        label: const Text('Conectar con Google'),
+                      ),
                   ],
-                  if (auth.isSignedIn && sync.lastError != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      sync.lastError!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.error,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  if (auth.isSignedIn) ...[
-                    FilledButton.icon(
-                      onPressed: sync.isSyncing
-                          ? null
-                          : () async {
-                              Navigator.of(context).pop();
-                              await _triggerManualSync(screenContext);
-                            },
-                      icon: const Icon(Icons.sync_rounded),
-                      label: const Text('Sincronizar ahora'),
-                    ),
-                    const SizedBox(height: 8),
-                    OutlinedButton.icon(
-                      onPressed: auth.isLoading
-                          ? null
-                          : () async {
-                              HapticFeedback.lightImpact();
-                              final switched = await sheetRef
-                                  .read(authControllerProvider.notifier)
-                                  .switchAccount();
-                              if (switched && context.mounted) {
-                                Navigator.of(context).pop();
-                              }
-                            },
-                      icon: const Icon(Icons.switch_account_outlined),
-                      label: const Text('Cambiar cuenta'),
-                    ),
-                    const SizedBox(height: 8),
-                    OutlinedButton.icon(
-                      onPressed: auth.isLoading
-                          ? null
-                          : () async {
-                              HapticFeedback.lightImpact();
-                              await sheetRef
-                                  .read(authControllerProvider.notifier)
-                                  .signOut();
-                              if (context.mounted) {
-                                Navigator.of(context).pop();
-                              }
-                            },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: colorScheme.error,
-                      ),
-                      icon: const Icon(Icons.logout_rounded),
-                      label: const Text('Desconectar cuenta'),
-                    ),
-                  ] else
-                    FilledButton.icon(
-                      onPressed: auth.isLoading
-                          ? null
-                          : () async {
-                              HapticFeedback.lightImpact();
-                              final signedIn = await sheetRef
-                                  .read(authControllerProvider.notifier)
-                                  .signIn();
-                              if (signedIn && context.mounted) {
-                                Navigator.of(context).pop();
-                              }
-                            },
-                      icon: auth.isLoading
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.login_rounded),
-                      label: const Text('Conectar con Google'),
-                    ),
-                ],
+                ),
               ),
             );
           },

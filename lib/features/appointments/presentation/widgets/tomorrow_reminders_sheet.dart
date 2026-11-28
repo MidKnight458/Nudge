@@ -37,164 +37,170 @@ class TomorrowRemindersSheet extends ConsumerWidget {
       minChildSize: 0.45,
       maxChildSize: 0.92,
       builder: (BuildContext context, ScrollController scrollController) {
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 12, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Confirmaciones de mañana',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          DateFormatters.formatFullDate(tomorrowDate),
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ],
+        return SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 12, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Confirmaciones de mañana',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            DateFormatters.formatFullDate(tomorrowDate),
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'Editar plantilla de respuesta',
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      TemplateEditorSheet.show(context);
-                    },
-                    icon: const Icon(Icons.edit_note_rounded),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: tomorrowAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (_, __) => const Center(
-                  child: Text('No se pudieron cargar las citas de mañana.'),
+                    IconButton.filledTonal(
+                      tooltip: 'Editar plantilla de respuesta',
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        TemplateEditorSheet.show(context);
+                      },
+                      icon: const Icon(Icons.edit_note_rounded),
+                    ),
+                  ],
                 ),
-                data: (List<AppointmentEntity> appointments) {
-                  if (appointments.isEmpty) {
-                    return ListView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.all(24),
-                      children: [
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.event_available_rounded,
-                                  size: 48,
-                                  color: colorScheme.primary,
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Sin citas para mañana',
-                                  style: theme.textTheme.titleMedium,
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Cuando agendes citas para mañana aparecerán '
-                                  'aquí listas para enviar su confirmación.',
-                                  style: theme.textTheme.bodyMedium,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-
-                  final sentCount = appointments
-                      .where((a) => a.reminderSent)
-                      .length;
-                  final total = appointments.length;
-                  final progress = total == 0 ? 0.0 : sentCount / total;
-
-                  return ListView.separated(
-                    controller: scrollController,
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                    itemCount: appointments.length + 1,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (BuildContext context, int index) {
-                      if (index == 0) {
-                        return Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: colorScheme.primaryContainer.withValues(
-                              alpha: 0.55,
-                            ),
-                            borderRadius: PixelShapes.cardBorderRadius,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+              ),
+              Expanded(
+                child: tomorrowAsync.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (_, __) => const Center(
+                    child: Text('No se pudieron cargar las citas de mañana.'),
+                  ),
+                  data: (List<AppointmentEntity> appointments) {
+                    if (appointments.isEmpty) {
+                      return ListView(
+                        controller: scrollController,
+                        padding: const EdgeInsets.all(24),
+                        children: [
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
                                 children: [
                                   Icon(
-                                    Icons.send_rounded,
-                                    size: 18,
-                                    color: colorScheme.onPrimaryContainer,
+                                    Icons.event_available_rounded,
+                                    size: 48,
+                                    color: colorScheme.primary,
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(height: 12),
                                   Text(
-                                    '$sentCount de $total confirmaciones enviadas',
-                                    style: theme.textTheme.titleSmall?.copyWith(
-                                      color: colorScheme.onPrimaryContainer,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                    'Sin citas para mañana',
+                                    style: theme.textTheme.titleMedium,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Cuando agendes citas para mañana aparecerán '
+                                    'aquí listas para enviar su confirmación.',
+                                    style: theme.textTheme.bodyMedium,
+                                    textAlign: TextAlign.center,
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 10),
-                              ClipRRect(
-                                borderRadius: PixelShapes.pillBorderRadius,
-                                child: LinearProgressIndicator(
-                                  value: progress,
-                                  minHeight: 8,
-                                  backgroundColor: colorScheme.surface
-                                      .withValues(alpha: 0.5),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        );
-                      }
-
-                      final appointment = appointments[index - 1];
-                      return _TomorrowConfirmationItem(
-                        appointment: appointment,
-                        onSendTap: () async {
-                          final launched = await ref
-                              .read(appointmentsControllerProvider.notifier)
-                              .sendWhatsAppReminder(
-                                appointment: appointment,
-                                templateBody: templateBody,
-                              );
-                          if (!launched && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'No se pudo abrir WhatsApp en este dispositivo.',
-                                ),
-                              ),
-                            );
-                          }
-                        },
+                        ],
                       );
-                    },
-                  );
-                },
+                    }
+
+                    final sentCount = appointments
+                        .where((a) => a.reminderSent)
+                        .length;
+                    final total = appointments.length;
+                    final progress = total == 0 ? 0.0 : sentCount / total;
+
+                    return ListView.separated(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      itemCount: appointments.length + 1,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (BuildContext context, int index) {
+                        if (index == 0) {
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primaryContainer.withValues(
+                                alpha: 0.55,
+                              ),
+                              borderRadius: PixelShapes.cardBorderRadius,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.send_rounded,
+                                      size: 18,
+                                      color: colorScheme.onPrimaryContainer,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '$sentCount de $total confirmaciones enviadas',
+                                      style: theme.textTheme.titleSmall
+                                          ?.copyWith(
+                                            color:
+                                                colorScheme.onPrimaryContainer,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                ClipRRect(
+                                  borderRadius: PixelShapes.pillBorderRadius,
+                                  child: LinearProgressIndicator(
+                                    value: progress,
+                                    minHeight: 8,
+                                    backgroundColor: colorScheme.surface
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        final appointment = appointments[index - 1];
+                        return _TomorrowConfirmationItem(
+                          appointment: appointment,
+                          onSendTap: () async {
+                            final launched = await ref
+                                .read(appointmentsControllerProvider.notifier)
+                                .sendWhatsAppReminder(
+                                  appointment: appointment,
+                                  templateBody: templateBody,
+                                );
+                            if (!launched && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'No se pudo abrir WhatsApp en este dispositivo.',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );

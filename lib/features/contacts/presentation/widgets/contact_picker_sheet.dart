@@ -161,113 +161,117 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
         minChildSize: 0.45,
         maxChildSize: 0.94,
         builder: (BuildContext context, ScrollController scrollController) {
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 16, 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _manualMode
-                                ? 'Nuevo $singularLower'
-                                : 'Seleccionar $singularLower',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _manualMode
-                                ? 'Guárdalo directo en Google o úsalo solo aquí'
-                                : 'Contactos de Google priorizados',
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ],
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: _isSavingManual
-                          ? null
-                          : () {
-                              HapticFeedback.lightImpact();
-                              setState(() {
-                                _manualMode = !_manualMode;
-                                if (_manualMode &&
-                                    _manualNameController.text.isEmpty &&
-                                    _searchController.text.trim().isNotEmpty) {
-                                  _manualNameController.text = _searchController
-                                      .text
-                                      .trim();
-                                }
-                              });
-                            },
-                      icon: Icon(
-                        _manualMode
-                            ? Icons.contacts_outlined
-                            : Icons.person_add_alt_1_rounded,
-                      ),
-                      label: Text(_manualMode ? 'Contactos' : 'Manual'),
-                    ),
-                  ],
-                ),
-              ),
-              if (_manualMode)
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                    child: _buildManualForm(
-                      theme,
-                      colorScheme,
-                      state,
-                      singularLower,
-                    ),
-                  ),
-                )
-              else ...[
+          return SafeArea(
+            top: false,
+            child: Column(
+              children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                  child: TextField(
-                    controller: _searchController,
-                    textInputAction: TextInputAction.search,
-                    onChanged: (String value) {
-                      ref
-                          .read(contactsControllerProvider.notifier)
-                          .setSearchQuery(value);
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Buscar por nombre o teléfono...',
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      suffixIcon: state.searchQuery.isNotEmpty
-                          ? IconButton(
-                              tooltip: 'Limpiar búsqueda',
-                              onPressed: () {
-                                _searchController.clear();
-                                ref
-                                    .read(contactsControllerProvider.notifier)
-                                    .setSearchQuery('');
+                  padding: const EdgeInsets.fromLTRB(20, 4, 16, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _manualMode
+                                  ? 'Nuevo $singularLower'
+                                  : 'Seleccionar $singularLower',
+                              style: theme.textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _manualMode
+                                  ? 'Guárdalo directo en Google o úsalo solo aquí'
+                                  : 'Contactos de Google priorizados',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: _isSavingManual
+                            ? null
+                            : () {
+                                HapticFeedback.lightImpact();
+                                setState(() {
+                                  _manualMode = !_manualMode;
+                                  if (_manualMode &&
+                                      _manualNameController.text.isEmpty &&
+                                      _searchController.text
+                                          .trim()
+                                          .isNotEmpty) {
+                                    _manualNameController.text =
+                                        _searchController.text.trim();
+                                  }
+                                });
                               },
-                              icon: const Icon(Icons.close_rounded),
-                            )
-                          : null,
+                        icon: Icon(
+                          _manualMode
+                              ? Icons.contacts_outlined
+                              : Icons.person_add_alt_1_rounded,
+                        ),
+                        label: Text(_manualMode ? 'Contactos' : 'Manual'),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_manualMode)
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                      child: _buildManualForm(
+                        theme,
+                        colorScheme,
+                        state,
+                        singularLower,
+                      ),
+                    ),
+                  )
+                else ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                    child: TextField(
+                      controller: _searchController,
+                      textInputAction: TextInputAction.search,
+                      onChanged: (String value) {
+                        ref
+                            .read(contactsControllerProvider.notifier)
+                            .setSearchQuery(value);
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Buscar por nombre o teléfono...',
+                        prefixIcon: const Icon(Icons.search_rounded),
+                        suffixIcon: state.searchQuery.isNotEmpty
+                            ? IconButton(
+                                tooltip: 'Limpiar búsqueda',
+                                onPressed: () {
+                                  _searchController.clear();
+                                  ref
+                                      .read(contactsControllerProvider.notifier)
+                                      .setSearchQuery('');
+                                },
+                                icon: const Icon(Icons.close_rounded),
+                              )
+                            : null,
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: _buildContactsBody(
-                    context: context,
-                    theme: theme,
-                    colorScheme: colorScheme,
-                    state: state,
-                    filtered: filtered,
-                    scrollController: scrollController,
-                    singularLower: singularLower,
+                  Expanded(
+                    child: _buildContactsBody(
+                      context: context,
+                      theme: theme,
+                      colorScheme: colorScheme,
+                      state: state,
+                      filtered: filtered,
+                      scrollController: scrollController,
+                      singularLower: singularLower,
+                    ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           );
         },
       ),

@@ -138,115 +138,118 @@ class _TemplateEditorSheetState extends ConsumerState<TemplateEditorSheet> {
 
     return Padding(
       padding: EdgeInsets.only(bottom: viewInsets.bottom),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Plantilla de Respuesta',
-                    style: theme.textTheme.titleLarge,
-                  ),
-                ),
-                const Chip(
-                  avatar: Icon(Icons.check_circle_outline_rounded, size: 16),
-                  label: Text('Confirmación'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Personaliza el mensaje de confirmación que se enviará por WhatsApp.',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: ReminderTemplateVariables.all
-                  .map((String variable) {
-                    return ActionChip(
-                      avatar: const Icon(Icons.add_rounded, size: 16),
-                      label: Text(variable),
-                      onPressed: () => _insertPlaceholder(variable),
-                    );
-                  })
-                  .toList(growable: false),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: _controller,
-              maxLines: 4,
-              minLines: 3,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: 'Mensaje de confirmación',
-                alignLabelWithHint: true,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: colorScheme.secondaryContainer.withValues(alpha: 0.45),
-                borderRadius: PixelShapes.cardBorderRadius,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.visibility_outlined,
-                        size: 16,
-                        color: colorScheme.onSecondaryContainer,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Vista previa',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: colorScheme.onSecondaryContainer,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    previewText,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface,
+                  Expanded(
+                    child: Text(
+                      'Plantilla de Respuesta',
+                      style: theme.textTheme.titleLarge,
                     ),
+                  ),
+                  const Chip(
+                    avatar: Icon(Icons.check_circle_outline_rounded, size: 16),
+                    label: Text('Confirmación'),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                TextButton.icon(
-                  onPressed: _isSaving ? null : _restoreDefault,
-                  icon: const Icon(Icons.restart_alt_rounded),
-                  label: const Text('Restaurar'),
+              const SizedBox(height: 4),
+              Text(
+                'Personaliza el mensaje de confirmación que se enviará por WhatsApp.',
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: ReminderTemplateVariables.all
+                    .map((String variable) {
+                      return ActionChip(
+                        avatar: const Icon(Icons.add_rounded, size: 16),
+                        label: Text(variable),
+                        onPressed: () => _insertPlaceholder(variable),
+                      );
+                    })
+                    .toList(growable: false),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _controller,
+                maxLines: 4,
+                minLines: 3,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(
+                  labelText: 'Mensaje de confirmación',
+                  alignLabelWithHint: true,
                 ),
-                const Spacer(),
-                FilledButton.icon(
-                  onPressed: _isSaving ? null : _save,
-                  icon: _isSaving
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.save_outlined),
-                  label: const Text('Guardar'),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: colorScheme.secondaryContainer.withValues(alpha: 0.45),
+                  borderRadius: PixelShapes.cardBorderRadius,
                 ),
-              ],
-            ),
-          ],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.visibility_outlined,
+                          size: 16,
+                          color: colorScheme.onSecondaryContainer,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Vista previa',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: colorScheme.onSecondaryContainer,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      previewText,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: _isSaving ? null : _restoreDefault,
+                    icon: const Icon(Icons.restart_alt_rounded),
+                    label: const Text('Restaurar'),
+                  ),
+                  const Spacer(),
+                  FilledButton.icon(
+                    onPressed: _isSaving ? null : _save,
+                    icon: _isSaving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: const Text('Guardar'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

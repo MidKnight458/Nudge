@@ -33,12 +33,22 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  static const List<(String, String)> _clientLabelPresets = <(String, String)>[
+    ('Clientes', 'Cliente'),
+    ('Pacientes', 'Paciente'),
+    ('Alumnos', 'Alumno'),
+    ('Estudiantes', 'Estudiante'),
+    ('Socios', 'Socio'),
+  ];
+
   final GlobalKey _servicesKey = GlobalKey();
   final GlobalKey _scheduleKey = GlobalKey();
+  final FocusNode _pluralFocusNode = FocusNode();
 
   late final TextEditingController _pluralController;
   late final TextEditingController _singularController;
   bool _labelsInitialized = false;
+  bool _customLabelMode = false;
   bool _isSavingLabels = false;
 
   TimeOfDay _rangeStart = const TimeOfDay(hour: 9, minute: 0);
@@ -60,6 +70,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   void dispose() {
+    _pluralFocusNode.dispose();
     _pluralController.dispose();
     _singularController.dispose();
     super.dispose();
@@ -87,6 +98,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _pluralController.text = prefs.clientLabelPlural;
     _singularController.text = prefs.clientLabelSingular;
     _intervalMinutes = prefs.schedule.defaultSlotDurationMinutes;
+    final matchesPreset = _clientLabelPresets.any(
+      ((String, String) preset) =>
+          preset.$1.toLowerCase() == prefs.clientLabelPlural.toLowerCase() &&
+          preset.$2.toLowerCase() == prefs.clientLabelSingular.toLowerCase(),
+    );
+    _customLabelMode = !matchesPreset;
     _labelsInitialized = true;
   }
 
@@ -121,6 +138,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _applyLabelPreset(String plural, String singular) async {
     HapticFeedback.lightImpact();
+    setState(() => _customLabelMode = false);
     _pluralController.text = plural;
     _singularController.text = singular;
     await _saveLabels();
@@ -336,7 +354,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Ajustes')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 36),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          8,
+          16,
+          36 + MediaQuery.paddingOf(context).bottom,
+        ),
         children: [
           _SectionCard(
             icon: Icons.badge_outlined,
@@ -348,62 +371,67 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children:
-                      const <(String, String)>[
-                            ('Clientes', 'Cliente'),
-                            ('Pacientes', 'Paciente'),
-                            ('Alumnos', 'Alumno'),
-                            ('Estudiantes', 'Estudiante'),
-                            ('Socios', 'Socio'),
-                          ]
-                          .map(((String, String) preset) {
-                            final selected =
-                                prefs.clientLabelPlural.toLowerCase() ==
-                                preset.$1.toLowerCase();
-                            return ChoiceChip(
-                              label: Text(preset.$1),
-                              selected: selected,
-                              onSelected: (_) =>
-                                  _applyLabelPreset(preset.$1, preset.$2),
-                            );
-                          })
-                          .toList(growable: false),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _pluralController,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: const InputDecoration(
-                          labelText: 'Plural',
-                          hintText: 'Clientes / Pacientes',
-                        ),
+                  children: <Widget>[
+                    for (final preset in _clientLabelPresets)
+                      ChoiceChip(
+                        label: Text(preset.$1),
+                        selected:
+                            !_customLabelMode &&
+                            prefs.clientLabelPlural.toLowerCase() ==
+                                preset.$1.toLowerCase(),
+                        onSelected: (_) =>
+                            _applyLabelPreset(preset.$1, preset.$2),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: _singularController,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: const InputDecoration(
-                          labelText: 'Singular',
-                          hintText: 'Cliente / Paciente',
-                        ),
-                      ),
+                    ChoiceChip(
+                      avatar: const Icon(Icons.edit_outlined, size: 16),
+                      label: const Text('Personalizado'),
+                      selected: _customLabelMode,
+                      onSelected: (_) {
+                        HapticFeedback.lightImpact();
+                        setState(() => _customLabelMode = true);
+                        _pluralFocusNode.requestFocus();
+                      },
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.tonalIcon(
-                    onPressed: _isSavingLabels ? null : _saveLabels,
-                    icon: const Icon(Icons.check_rounded),
-                    label: const Text('Guardar nombre'),
+                if (_customLabelMode) ...[
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _pluralController,
+                          focusNode: _pluralFocusNode,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Plural',
+                            hintText: 'Clientes / Pacientes',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _singularController,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Singular',
+                            hintText: 'Cliente / Paciente',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton.tonalIcon(
+                      onPressed: _isSavingLabels ? null : _saveLabels,
+                      icon: const Icon(Icons.check_rounded),
+                      label: const Text('Guardar nombre'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
