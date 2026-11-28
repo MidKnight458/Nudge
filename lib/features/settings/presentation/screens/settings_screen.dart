@@ -6,6 +6,7 @@ import 'package:nudge/core/theme/pixel_shapes.dart';
 import 'package:nudge/features/appointments/data/google_calendar_datasource.dart';
 import 'package:nudge/features/appointments/domain/entities/appointment_entity.dart';
 import 'package:nudge/features/appointments/presentation/controllers/appointments_controller.dart';
+import 'package:nudge/features/appointments/presentation/controllers/sync_controller.dart';
 import 'package:nudge/features/auth/presentation/auth_controller.dart';
 import 'package:nudge/features/reminders/presentation/template_editor_sheet.dart';
 import 'package:nudge/features/settings/data/settings_repository.dart';
@@ -698,14 +699,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await ref
           .read(googleCalendarDatasourceProvider)
           .ensureNudgeCalendar(requestScopeIfNeeded: true);
+      final result = await ref
+          .read(syncControllerProvider.notifier)
+          .syncNow(silent: false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Calendario "Nudge" listo en tu cuenta de Google Calendar.',
-            ),
-          ),
-        );
+        final message = result.hasError
+            ? result.errorMessage!
+            : (result.calendarBackfilled > 0
+                  ? (result.calendarBackfilled == 1
+                        ? 'Calendario "Nudge" verificado: 1 cita restaurada.'
+                        : 'Calendario "Nudge" verificado: ${result.calendarBackfilled} citas restauradas.')
+                  : 'Calendario "Nudge" verificado y todas tus citas están al día.');
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
       }
     } on CalendarAuthUnavailableException {
       if (mounted) {

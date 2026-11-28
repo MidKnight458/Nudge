@@ -85,12 +85,15 @@ class _FakeAuthRepository implements AuthRepository {
 class _SharedFakeGoogleCalendarDatasource implements GoogleCalendarDatasource {
   final Map<String, calendar.Event> eventsById = <String, calendar.Event>{};
   final List<String> sharedEmails = <String>[];
+  final List<String> deletedLegacyPrimaryIds = <String>[];
   int ensureCalendarCount = 0;
   int insertCount = 0;
   int patchCount = 0;
   int deleteCount = 0;
+  int listActiveEventsCount = 0;
   int _nextId = 1;
   Object? errorToThrowOnWrite;
+  Object? errorToThrowOnList;
 
   @override
   Future<String> ensureNudgeCalendar({
@@ -109,7 +112,10 @@ class _SharedFakeGoogleCalendarDatasource implements GoogleCalendarDatasource {
   }
 
   @override
-  Future<String> insertEvent(AppointmentEntity appointment) async {
+  Future<String> insertEvent(
+    AppointmentEntity appointment, {
+    bool requestScopeIfNeeded = false,
+  }) async {
     final error = errorToThrowOnWrite;
     if (error != null) {
       throw error;
@@ -130,12 +136,18 @@ class _SharedFakeGoogleCalendarDatasource implements GoogleCalendarDatasource {
       ),
       start: calendar.EventDateTime(dateTime: appointment.startTime.toUtc()),
       end: calendar.EventDateTime(dateTime: appointment.endTime.toUtc()),
+      extendedProperties: calendar.EventExtendedProperties(
+        private: <String, String>{'nudgeSyncId': appointment.syncId},
+      ),
     );
     return id;
   }
 
   @override
-  Future<void> patchEvent(AppointmentEntity appointment) async {
+  Future<void> patchEvent(
+    AppointmentEntity appointment, {
+    bool requestScopeIfNeeded = false,
+  }) async {
     final error = errorToThrowOnWrite;
     if (error != null) {
       throw error;
@@ -159,6 +171,9 @@ class _SharedFakeGoogleCalendarDatasource implements GoogleCalendarDatasource {
       ),
       start: calendar.EventDateTime(dateTime: appointment.startTime.toUtc()),
       end: calendar.EventDateTime(dateTime: appointment.endTime.toUtc()),
+      extendedProperties: calendar.EventExtendedProperties(
+        private: <String, String>{'nudgeSyncId': appointment.syncId},
+      ),
     );
   }
 
@@ -170,6 +185,51 @@ class _SharedFakeGoogleCalendarDatasource implements GoogleCalendarDatasource {
     }
     deleteCount++;
     eventsById.remove(googleCalendarEventId);
+  }
+
+  @override
+  Future<void> deleteLegacyPrimaryEvent(String googleCalendarEventId) async {
+    deletedLegacyPrimaryIds.add(googleCalendarEventId);
+  }
+
+  @override
+  Future<List<CalendarRemoteEvent>> listActiveEvents({
+    DateTime? timeMin,
+    bool requestScopeIfNeeded = false,
+  }) async {
+    final error = errorToThrowOnList;
+    if (error != null) {
+      throw error;
+    }
+    listActiveEventsCount++;
+    final results = <CalendarRemoteEvent>[];
+    for (final event in eventsById.values) {
+      final id = event.id;
+      final start = event.start?.dateTime ?? event.start?.date;
+      final end = event.end?.dateTime ?? event.end?.date;
+      if (id == null || start == null || end == null) {
+        continue;
+      }
+      if (timeMin != null && !end.toUtc().isAfter(timeMin.toUtc())) {
+        continue;
+      }
+      final rawSyncId = event.extendedProperties?.private?['nudgeSyncId']
+          ?.trim();
+      results.add(
+        CalendarRemoteEvent(
+          id: id,
+          status: event.status ?? 'confirmed',
+          summary: event.summary,
+          description: event.description,
+          startTime: start.toLocal(),
+          endTime: end.toLocal(),
+          nudgeSyncId: (rawSyncId == null || rawSyncId.isEmpty)
+              ? null
+              : rawSyncId,
+        ),
+      );
+    }
+    return results;
   }
 
   @override
@@ -1046,6 +1106,215 @@ void main() {
 
       await repoA.synchronize();
       expect(calendarMirror.ensureCalendarCount, greaterThanOrEqualTo(1));
+    });
+
+    test('synchronize backfills synced upcoming appointment with null Calendar ID into Nudge calendar without duplicating', () async {
+      calendarMirror.errorToThrowOnWrite = calendar.DetailedApiRequestError(
+        403,
+        'Calendar API temporarily unavailable',
+      );
+
+      final created = await repoA.createAppointment(
+        AppointmentInput(
+          clientName: 'Valeria Paredes',
+          clientRawPhone: '5511223344',
+          clientPhoneE164: '5215511223344',
+          title: 'Cita de sábado',
+          startTime: DateTime(2026, 11, 28, 14, 0),
+          endTime: DateTime(2026, 11, 28, 15, 0),
+        ),
+      );
+      expect(created.syncStatus, AppointmentSyncStatus.synced);
+      expect(created.googleCalendarEventId, isNull);
+      expect(calendarMirror.eventsById, isEmpty);
+
+      calendarMirror.errorToThrowOnWrite = null;
+
+      final firstSync = await repoA.synchronize(interactive: true);
+      expect(firstSync.hasError, isFalse);
+      expect(firstSync.calendarBackfilled, 1);
+      expect(calendarMirror.insertCount, 1);
+      expect(calendarMirror.eventsById, hasLength(1));
+
+      final localUpdated = await localA.getAppointmentById(created.id);
+      expect(localUpdated?.googleCalendarEventId, isNotNull);
+      final cloudDocs = await firestore.fetchAppointments(testUser.id);
+      expect(
+        cloudDocs.single.googleCalendarEventId,
+        localUpdated?.googleCalendarEventId,
+      );
+
+      final secondSync = await repoA.synchronize();
+      expect(secondSync.hasError, isFalse);
+      expect(secondSync.calendarBackfilled, 0);
+      expect(calendarMirror.insertCount, 1);
+    });
+
+    test('synchronize recreates upcoming appointment missing from Nudge calendar and cleans legacy primary ID', () async {
+      final created = await repoA.createAppointment(
+        AppointmentInput(
+          clientName: 'Diego Morales',
+          clientRawPhone: '5544332211',
+          clientPhoneE164: '5215544332211',
+          title: 'Control semanal',
+          startTime: DateTime(2026, 11, 30, 11, 0),
+          endTime: DateTime(2026, 11, 30, 12, 0),
+        ),
+      );
+      final oldEventId = created.googleCalendarEventId!;
+      expect(calendarMirror.insertCount, 1);
+
+      // Simulate event missing in "Nudge" (deleted remotely or stored on pre-v1.4 primary).
+      calendarMirror.eventsById.clear();
+
+      final syncResult = await repoA.synchronize();
+      expect(syncResult.hasError, isFalse);
+      expect(syncResult.calendarBackfilled, 1);
+      expect(calendarMirror.deletedLegacyPrimaryIds, <String>[oldEventId]);
+      expect(calendarMirror.insertCount, 2);
+      expect(calendarMirror.eventsById, hasLength(1));
+
+      final localUpdated = await localA.getAppointmentById(created.id);
+      final newEventId = localUpdated?.googleCalendarEventId;
+      expect(newEventId, isNotNull);
+      expect(newEventId, isNot(oldEventId));
+
+      final cloudDocs = await firestore.fetchAppointments(testUser.id);
+      expect(cloudDocs.single.googleCalendarEventId, newEventId);
+
+      final secondSync = await repoA.synchronize();
+      expect(secondSync.calendarBackfilled, 0);
+      expect(calendarMirror.insertCount, 2);
+    });
+
+    test('synchronize re-links upcoming appointment when event with matching nudgeSyncId already exists in Nudge', () async {
+      calendarMirror.errorToThrowOnWrite = calendar.DetailedApiRequestError(
+        403,
+        'Transient error',
+      );
+      final created = await repoA.createAppointment(
+        AppointmentInput(
+          clientName: 'Camila Soto',
+          clientRawPhone: '5577889900',
+          clientPhoneE164: '5215577889900',
+          title: 'Sesión previa',
+          startTime: DateTime(2026, 12, 2, 16, 0),
+          endTime: DateTime(2026, 12, 2, 17, 0),
+        ),
+      );
+      expect(created.googleCalendarEventId, isNull);
+      calendarMirror.errorToThrowOnWrite = null;
+
+      // Simulate another device having already pushed this event to the shared Calendar.
+      calendarMirror.eventsById['existing_nudge_evt'] = calendar.Event(
+        id: 'existing_nudge_evt',
+        status: 'confirmed',
+        summary: CalendarEventMetadataCodec.buildEventSummary(
+          title: created.title,
+          clientName: created.clientName,
+        ),
+        start: calendar.EventDateTime(dateTime: created.startTime.toUtc()),
+        end: calendar.EventDateTime(dateTime: created.endTime.toUtc()),
+        extendedProperties: calendar.EventExtendedProperties(
+          private: <String, String>{'nudgeSyncId': created.syncId},
+        ),
+      );
+
+      final syncResult = await repoA.synchronize();
+      expect(syncResult.hasError, isFalse);
+      expect(syncResult.calendarBackfilled, 0);
+      expect(calendarMirror.insertCount, 0);
+
+      final localUpdated = await localA.getAppointmentById(created.id);
+      expect(localUpdated?.googleCalendarEventId, 'existing_nudge_evt');
+      final cloudDocs = await firestore.fetchAppointments(testUser.id);
+      expect(cloudDocs.single.googleCalendarEventId, 'existing_nudge_evt');
+    });
+
+    test('synchronize patches stale event details when Nudge calendar event drifted', () async {
+      final created = await repoA.createAppointment(
+        AppointmentInput(
+          clientName: 'Fernando Cruz',
+          clientRawPhone: '5500112233',
+          clientPhoneE164: '5215500112233',
+          title: 'Consulta actualizada',
+          startTime: DateTime(2026, 12, 3, 9, 0),
+          endTime: DateTime(2026, 12, 3, 10, 0),
+        ),
+      );
+      final eventId = created.googleCalendarEventId!;
+
+      // Simulate remote Calendar event holding an outdated summary.
+      calendarMirror.eventsById[eventId] = calendar.Event(
+        id: eventId,
+        status: 'confirmed',
+        summary: 'Título antiguo — Fernando Cruz',
+        start: calendar.EventDateTime(dateTime: created.startTime.toUtc()),
+        end: calendar.EventDateTime(dateTime: created.endTime.toUtc()),
+        extendedProperties: calendar.EventExtendedProperties(
+          private: <String, String>{'nudgeSyncId': created.syncId},
+        ),
+      );
+
+      final syncResult = await repoA.synchronize();
+      expect(syncResult.hasError, isFalse);
+      expect(syncResult.calendarBackfilled, 1);
+      expect(calendarMirror.patchCount, 1);
+      expect(
+        calendarMirror.eventsById[eventId]?.summary,
+        CalendarEventMetadataCodec.buildEventSummary(
+          title: 'Consulta actualizada',
+          clientName: 'Fernando Cruz',
+        ),
+      );
+    });
+
+    test('synchronize skips past concluded appointments before today when verifying Calendar', () async {
+      // nowProvider is 2026-11-28 08:00; appointment ended yesterday (2026-11-27 18:00).
+      final past = await repoA.createAppointment(
+        AppointmentInput(
+          clientName: 'Paola Rivas',
+          clientRawPhone: '5522446688',
+          clientPhoneE164: '5215522446688',
+          title: 'Cita pasada',
+          startTime: DateTime(2026, 11, 27, 17, 0),
+          endTime: DateTime(2026, 11, 27, 18, 0),
+        ),
+      );
+      expect(calendarMirror.insertCount, 1);
+      expect(past.syncStatus, AppointmentSyncStatus.synced);
+
+      calendarMirror.eventsById.clear();
+
+      final syncResult = await repoA.synchronize();
+      expect(syncResult.hasError, isFalse);
+      expect(syncResult.calendarBackfilled, 0);
+      expect(calendarMirror.insertCount, 1);
+      expect(calendarMirror.listActiveEventsCount, 0);
+    });
+
+    test('synchronize surfaces Calendar error while keeping Firestore sync intact on 403', () async {
+      await repoA.createAppointment(
+        AppointmentInput(
+          clientName: 'Renata Luna',
+          clientRawPhone: '5566778899',
+          clientPhoneE164: '5215566778899',
+          title: 'Sesión protegida',
+          startTime: DateTime(2026, 12, 5, 13, 0),
+          endTime: DateTime(2026, 12, 5, 14, 0),
+        ),
+      );
+
+      calendarMirror.errorToThrowOnList = calendar.DetailedApiRequestError(
+        403,
+        'Insufficient scopes',
+      );
+
+      final syncResult = await repoA.synchronize();
+      expect(syncResult.syncedAt, isNotNull);
+      expect(syncResult.hasError, isTrue);
+      expect(syncResult.errorMessage, contains('HTTP 403'));
+      expect(syncResult.calendarBackfilled, 0);
     });
   });
 }

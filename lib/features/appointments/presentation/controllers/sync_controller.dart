@@ -235,7 +235,7 @@ class SyncController extends Notifier<SyncUiState> {
       await _settingsRepository.syncWithCloud();
     } catch (_) {}
 
-    final result = await _repository.synchronize();
+    final result = await _repository.synchronize(interactive: !silent);
     if (!result.wasSkipped) {
       try {
         await _clientsRepository.syncWithCloud();

@@ -28,6 +28,7 @@ class CalendarRemoteEvent {
     this.description,
     this.startTime,
     this.endTime,
+    this.nudgeSyncId,
   });
 
   final String id;
@@ -36,6 +37,7 @@ class CalendarRemoteEvent {
   final String? description;
   final DateTime? startTime;
   final DateTime? endTime;
+  final String? nudgeSyncId;
 
   bool get isCancelled => status == 'cancelled';
 }
@@ -58,11 +60,24 @@ abstract interface class GoogleCalendarDatasource {
     String role = 'reader',
   });
 
-  Future<String> insertEvent(AppointmentEntity appointment);
+  Future<String> insertEvent(
+    AppointmentEntity appointment, {
+    bool requestScopeIfNeeded = false,
+  });
 
-  Future<void> patchEvent(AppointmentEntity appointment);
+  Future<void> patchEvent(
+    AppointmentEntity appointment, {
+    bool requestScopeIfNeeded = false,
+  });
 
   Future<void> deleteEvent(String googleCalendarEventId);
+
+  Future<void> deleteLegacyPrimaryEvent(String googleCalendarEventId);
+
+  Future<List<CalendarRemoteEvent>> listActiveEvents({
+    DateTime? timeMin,
+    bool requestScopeIfNeeded = false,
+  });
 
   Future<CalendarDeltaPage> listEventsDelta({
     String? syncToken,
@@ -209,7 +224,10 @@ class GoogleCalendarDatasourceImpl implements GoogleCalendarDatasource {
   }
 
   @override
-  Future<String> insertEvent(AppointmentEntity appointment) async {
+  Future<String> insertEvent(
+    AppointmentEntity appointment, {
+    bool requestScopeIfNeeded = false,
+  }) async {
     return _withClient((calendar.CalendarApi api) async {
       final event = _toCalendarEvent(appointment);
       var calendarId = await _resolveNudgeCalendarId(api);
@@ -230,11 +248,14 @@ class GoogleCalendarDatasourceImpl implements GoogleCalendarDatasource {
         throw StateError('Google Calendar insert returned an empty event ID.');
       }
       return eventId;
-    });
+    }, requestScopeIfNeeded: requestScopeIfNeeded);
   }
 
   @override
-  Future<void> patchEvent(AppointmentEntity appointment) async {
+  Future<void> patchEvent(
+    AppointmentEntity appointment, {
+    bool requestScopeIfNeeded = false,
+  }) async {
     final eventId = appointment.googleCalendarEventId;
     if (eventId == null || eventId.isEmpty) {
       throw ArgumentError('Cannot patch event without googleCalendarEventId.');
@@ -258,7 +279,71 @@ class GoogleCalendarDatasourceImpl implements GoogleCalendarDatasource {
         }
         rethrow;
       }
+    }, requestScopeIfNeeded: requestScopeIfNeeded);
+  }
+
+  @override
+  Future<void> deleteLegacyPrimaryEvent(String googleCalendarEventId) async {
+    await _withClient((calendar.CalendarApi api) async {
+      try {
+        await api.events.delete(
+          AppConstants.primaryCalendarId,
+          googleCalendarEventId,
+        );
+      } on calendar.DetailedApiRequestError catch (error) {
+        if (error.status != 404 && error.status != 410) {
+          rethrow;
+        }
+      }
     });
+  }
+
+  @override
+  Future<List<CalendarRemoteEvent>> listActiveEvents({
+    DateTime? timeMin,
+    bool requestScopeIfNeeded = false,
+  }) async {
+    return _withClient((calendar.CalendarApi api) async {
+      var calendarId = await _resolveNudgeCalendarId(api);
+      final collected = <CalendarRemoteEvent>[];
+      String? pageToken;
+      var retriedAfterNotFound = false;
+
+      while (true) {
+        try {
+          final response = await api.events.list(
+            calendarId,
+            timeMin: timeMin?.toUtc(),
+            showDeleted: false,
+            pageToken: pageToken,
+          );
+
+          for (final item in response.items ?? const <calendar.Event>[]) {
+            final mapped = _fromCalendarEvent(item);
+            if (mapped != null && !mapped.isCancelled) {
+              collected.add(mapped);
+            }
+          }
+
+          pageToken = response.nextPageToken;
+          if (pageToken == null || pageToken.isEmpty) {
+            break;
+          }
+        } on calendar.DetailedApiRequestError catch (error) {
+          if (error.status == 404 && !retriedAfterNotFound) {
+            retriedAfterNotFound = true;
+            _invalidateCache();
+            calendarId = await _resolveNudgeCalendarId(api);
+            collected.clear();
+            pageToken = null;
+            continue;
+          }
+          rethrow;
+        }
+      }
+
+      return collected;
+    }, requestScopeIfNeeded: requestScopeIfNeeded);
   }
 
   @override
@@ -377,6 +462,9 @@ class GoogleCalendarDatasourceImpl implements GoogleCalendarDatasource {
       description: description,
       start: calendar.EventDateTime(dateTime: appointment.startTime.toUtc()),
       end: calendar.EventDateTime(dateTime: appointment.endTime.toUtc()),
+      extendedProperties: calendar.EventExtendedProperties(
+        private: <String, String>{'nudgeSyncId': appointment.syncId},
+      ),
     );
   }
 
@@ -401,6 +489,8 @@ class GoogleCalendarDatasourceImpl implements GoogleCalendarDatasource {
       end = start.add(AppConstants.defaultAppointmentDuration);
     }
 
+    final rawSyncId = event.extendedProperties?.private?['nudgeSyncId']?.trim();
+
     return CalendarRemoteEvent(
       id: id,
       status: status,
@@ -408,6 +498,7 @@ class GoogleCalendarDatasourceImpl implements GoogleCalendarDatasource {
       description: event.description,
       startTime: start.toLocal(),
       endTime: end.toLocal(),
+      nudgeSyncId: (rawSyncId == null || rawSyncId.isEmpty) ? null : rawSyncId,
     );
   }
 }

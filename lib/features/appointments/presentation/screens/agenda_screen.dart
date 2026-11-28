@@ -326,10 +326,18 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
     final pushed =
         result.pushedCreated + result.pushedUpdated + result.pushedDeleted;
     final pulled = result.pulledUpserted + result.pulledDeleted;
-    if (pushed == 0 && pulled == 0) {
+    if (pushed == 0 && pulled == 0 && result.calendarBackfilled == 0) {
       return 'Agenda al día.';
     }
-    return 'Sincronizado: $pushed enviadas, $pulled actualizadas.';
+    if (pushed == 0 && pulled == 0 && result.calendarBackfilled > 0) {
+      return result.calendarBackfilled == 1
+          ? '1 cita restaurada en Google Calendar.'
+          : '${result.calendarBackfilled} citas restauradas en Google Calendar.';
+    }
+    final calendarNote = result.calendarBackfilled > 0
+        ? ' (${result.calendarBackfilled} en calendario)'
+        : '';
+    return 'Sincronizado: $pushed enviadas, $pulled actualizadas$calendarNote.';
   }
 
   Future<void> _sendCardReminder(

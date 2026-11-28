@@ -32,6 +32,7 @@ class SyncResult {
     this.pushedDeleted = 0,
     this.pulledUpserted = 0,
     this.pulledDeleted = 0,
+    this.calendarBackfilled = 0,
     this.usedFullResync = false,
     this.syncedAt,
     this.skippedReason,
@@ -43,6 +44,7 @@ class SyncResult {
   final int pushedDeleted;
   final int pulledUpserted;
   final int pulledDeleted;
+  final int calendarBackfilled;
   final bool usedFullResync;
   final DateTime? syncedAt;
   final String? skippedReason;
@@ -86,7 +88,7 @@ abstract interface class AppointmentsRepository {
 
   Future<void> markReminderSent(int appointmentId, {bool sent = true});
 
-  Future<SyncResult> synchronize();
+  Future<SyncResult> synchronize({bool interactive = false});
 
   Future<int> applyCloudSnapshot(List<CloudAppointmentDocument> documents);
 }

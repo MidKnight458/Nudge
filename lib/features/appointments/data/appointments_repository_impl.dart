@@ -217,13 +217,13 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
   }
 
   @override
-  Future<SyncResult> synchronize() {
+  Future<SyncResult> synchronize({bool interactive = false}) {
     final existing = _inFlightSync;
     if (existing != null) {
       return existing;
     }
 
-    final future = _enqueue(_runSynchronize);
+    final future = _enqueue(() => _runSynchronize(interactive: interactive));
     _inFlightSync = future;
     future.whenComplete(() {
       if (identical(_inFlightSync, future)) {
@@ -233,7 +233,7 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
     return future;
   }
 
-  Future<SyncResult> _runSynchronize() async {
+  Future<SyncResult> _runSynchronize({required bool interactive}) async {
     if (!await _connectivity.isOnline) {
       return const SyncResult(skippedReason: 'Sin conexión a internet.');
     }
@@ -250,12 +250,13 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
     var pushedDeleted = 0;
     var pulledUpserted = 0;
     var pulledDeleted = 0;
+    var calendarBackfilled = 0;
     String? calendarWarning;
 
     try {
       // 0. Proactively ensure dedicated secondary "Nudge" Google Calendar exists.
       try {
-        await _calendar.ensureNudgeCalendar();
+        await _calendar.ensureNudgeCalendar(requestScopeIfNeeded: interactive);
       } catch (_) {
         // Non-fatal: individual operations surface actionable Calendar warnings.
       }
@@ -282,7 +283,10 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
               pulledDeleted++;
               break;
             }
-            final mirrored = await _mirrorUpsertToCalendar(item);
+            final mirrored = await _mirrorUpsertToCalendar(
+              item,
+              requestScopeIfNeeded: interactive,
+            );
             calendarWarning ??= mirrored.warning;
             await _firestore.upsertAppointment(
               user.id,
@@ -307,7 +311,10 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
               pulledDeleted++;
               break;
             }
-            final mirrored = await _mirrorUpsertToCalendar(item);
+            final mirrored = await _mirrorUpsertToCalendar(
+              item,
+              requestScopeIfNeeded: interactive,
+            );
             calendarWarning ??= mirrored.warning;
             await _firestore.upsertAppointment(
               user.id,
@@ -351,7 +358,10 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
         var effective = item;
         if (effective.googleCalendarEventId == null ||
             effective.googleCalendarEventId!.isEmpty) {
-          final mirrored = await _mirrorUpsertToCalendar(effective);
+          final mirrored = await _mirrorUpsertToCalendar(
+            effective,
+            requestScopeIfNeeded: interactive,
+          );
           calendarWarning ??= mirrored.warning;
           effective = mirrored.entity;
           if (effective.googleCalendarEventId != null) {
@@ -378,6 +388,14 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
       pulledUpserted += pullStats.upserted;
       pulledDeleted += pullStats.deleted;
 
+      // 5. Verify today & upcoming synced appointments exist in the dedicated "Nudge" calendar.
+      final verification = await _reconcileScheduledCalendarEvents(
+        userId: user.id,
+        interactive: interactive,
+      );
+      calendarBackfilled = verification.backfilled;
+      calendarWarning ??= verification.warning;
+
       final syncedAt = _now().toUtc();
       await _local.saveSyncMetadata(lastSyncTimestamp: syncedAt);
 
@@ -387,6 +405,7 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
         pushedDeleted: pushedDeleted,
         pulledUpserted: pulledUpserted,
         pulledDeleted: pulledDeleted,
+        calendarBackfilled: calendarBackfilled,
         syncedAt: syncedAt.toLocal(),
         errorMessage: calendarWarning,
       );
@@ -395,6 +414,240 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
         errorMessage: 'No se pudo completar la sincronización con la nube.',
       );
     }
+  }
+
+  Future<({int backfilled, String? warning})>
+  _reconcileScheduledCalendarEvents({
+    required String userId,
+    required bool interactive,
+  }) async {
+    final nowLocal = _now().toLocal();
+    final verificationStart = DateTime(
+      nowLocal.year,
+      nowLocal.month,
+      nowLocal.day,
+    );
+    final calendarQueryMin = verificationStart.subtract(
+      const Duration(days: 1),
+    );
+    final currentActive = await _local.getAllActiveAppointments();
+
+    final candidatesToVerify = currentActive
+        .where(
+          (AppointmentEntity appt) =>
+              appt.syncStatus == AppointmentSyncStatus.synced &&
+              (!appt.startTime.toLocal().isBefore(verificationStart) ||
+                  appt.endTime.toLocal().isAfter(verificationStart)),
+        )
+        .toList(growable: false);
+
+    if (candidatesToVerify.isEmpty) {
+      return (backfilled: 0, warning: null);
+    }
+
+    final List<CalendarRemoteEvent> remoteEvents;
+    try {
+      remoteEvents = await _calendar.listActiveEvents(
+        timeMin: calendarQueryMin,
+        requestScopeIfNeeded: interactive,
+      );
+    } catch (error) {
+      return (backfilled: 0, warning: _describeCalendarError(error));
+    }
+
+    final remoteById = <String, CalendarRemoteEvent>{};
+    final remoteBySyncId = <String, CalendarRemoteEvent>{};
+    for (final event in remoteEvents) {
+      if (event.isCancelled) {
+        continue;
+      }
+      remoteById[event.id] = event;
+      final syncId = event.nudgeSyncId;
+      if (syncId != null && syncId.isNotEmpty) {
+        remoteBySyncId.putIfAbsent(syncId, () => event);
+      }
+    }
+
+    final claimedEventIds = <String>{
+      for (final appt in currentActive)
+        if (appt.googleCalendarEventId != null &&
+            appt.googleCalendarEventId!.trim().isNotEmpty &&
+            remoteById.containsKey(appt.googleCalendarEventId!.trim()))
+          appt.googleCalendarEventId!.trim(),
+    };
+
+    var backfilled = 0;
+    String? warning;
+
+    for (final appt in candidatesToVerify) {
+      try {
+        final updated = await _reconcileSingleCalendarAppointment(
+          userId: userId,
+          appt: appt,
+          interactive: interactive,
+          remoteEvents: remoteEvents,
+          remoteById: remoteById,
+          remoteBySyncId: remoteBySyncId,
+          claimedEventIds: claimedEventIds,
+        );
+        if (updated) {
+          backfilled++;
+        }
+      } on CalendarAuthUnavailableException catch (error) {
+        warning ??= _describeCalendarError(error);
+        break;
+      } on calendar.DetailedApiRequestError catch (error) {
+        warning ??= _describeCalendarError(error);
+        if (error.status == 401 || error.status == 403) {
+          break;
+        }
+      } catch (error) {
+        warning ??= _describeCalendarError(error);
+      }
+    }
+
+    return (backfilled: backfilled, warning: warning);
+  }
+
+  Future<bool> _reconcileSingleCalendarAppointment({
+    required String userId,
+    required AppointmentEntity appt,
+    required bool interactive,
+    required List<CalendarRemoteEvent> remoteEvents,
+    required Map<String, CalendarRemoteEvent> remoteById,
+    required Map<String, CalendarRemoteEvent> remoteBySyncId,
+    required Set<String> claimedEventIds,
+  }) async {
+    final expectedSummary = CalendarEventMetadataCodec.buildEventSummary(
+      title: appt.title,
+      clientName: appt.clientName,
+    );
+    final existingId = appt.googleCalendarEventId?.trim();
+
+    if (existingId != null &&
+        existingId.isNotEmpty &&
+        remoteById.containsKey(existingId)) {
+      final remoteEvent = remoteById[existingId]!;
+      if (_calendarEventNeedsPatch(remoteEvent, appt, expectedSummary)) {
+        await _calendar.patchEvent(appt, requestScopeIfNeeded: interactive);
+        return true;
+      }
+      return false;
+    }
+
+    final matchedRemote = _findUnclaimedCalendarMatch(
+      appt: appt,
+      expectedSummary: expectedSummary,
+      remoteEvents: remoteEvents,
+      remoteBySyncId: remoteBySyncId,
+      claimedEventIds: claimedEventIds,
+    );
+
+    if (matchedRemote != null) {
+      claimedEventIds.add(matchedRemote.id);
+      await _persistReconciledEventId(
+        userId: userId,
+        appt: appt,
+        eventId: matchedRemote.id,
+      );
+      if (_calendarEventNeedsPatch(matchedRemote, appt, expectedSummary)) {
+        await _calendar.patchEvent(
+          appt.copyWith(googleCalendarEventId: matchedRemote.id),
+          requestScopeIfNeeded: interactive,
+        );
+        return true;
+      }
+      return false;
+    }
+
+    if (existingId != null && existingId.isNotEmpty) {
+      try {
+        await _calendar.deleteLegacyPrimaryEvent(existingId);
+      } catch (_) {}
+    }
+
+    final newEventId = await _calendar.insertEvent(
+      appt,
+      requestScopeIfNeeded: interactive,
+    );
+    claimedEventIds.add(newEventId);
+    final syntheticRemote = CalendarRemoteEvent(
+      id: newEventId,
+      status: 'confirmed',
+      summary: expectedSummary,
+      startTime: appt.startTime,
+      endTime: appt.endTime,
+      nudgeSyncId: appt.syncId,
+    );
+    remoteById[newEventId] = syntheticRemote;
+    remoteBySyncId[appt.syncId] = syntheticRemote;
+
+    await _persistReconciledEventId(
+      userId: userId,
+      appt: appt,
+      eventId: newEventId,
+    );
+    return true;
+  }
+
+  CalendarRemoteEvent? _findUnclaimedCalendarMatch({
+    required AppointmentEntity appt,
+    required String expectedSummary,
+    required List<CalendarRemoteEvent> remoteEvents,
+    required Map<String, CalendarRemoteEvent> remoteBySyncId,
+    required Set<String> claimedEventIds,
+  }) {
+    final bySyncId = remoteBySyncId[appt.syncId];
+    if (bySyncId != null && !claimedEventIds.contains(bySyncId.id)) {
+      return bySyncId;
+    }
+
+    for (final event in remoteEvents) {
+      if (event.isCancelled || claimedEventIds.contains(event.id)) {
+        continue;
+      }
+      if (event.nudgeSyncId != null && event.nudgeSyncId!.isNotEmpty) {
+        continue;
+      }
+      if (event.summary == expectedSummary &&
+          event.startTime != null &&
+          event.endTime != null &&
+          _sameUnixSecond(event.startTime!, appt.startTime) &&
+          _sameUnixSecond(event.endTime!, appt.endTime)) {
+        return event;
+      }
+    }
+    return null;
+  }
+
+  bool _calendarEventNeedsPatch(
+    CalendarRemoteEvent remoteEvent,
+    AppointmentEntity appt,
+    String expectedSummary,
+  ) {
+    return remoteEvent.summary != expectedSummary ||
+        remoteEvent.startTime == null ||
+        remoteEvent.endTime == null ||
+        !_sameUnixSecond(remoteEvent.startTime!, appt.startTime) ||
+        !_sameUnixSecond(remoteEvent.endTime!, appt.endTime);
+  }
+
+  Future<void> _persistReconciledEventId({
+    required String userId,
+    required AppointmentEntity appt,
+    required String eventId,
+  }) async {
+    final updated = await _local.markAppointmentSynced(
+      appointmentId: appt.id,
+      googleCalendarEventId: eventId,
+      lastModified: appt.lastModified,
+    );
+    await _firestore.upsertAppointment(
+      userId,
+      CloudAppointmentDocument.fromEntity(
+        updated ?? appt.copyWith(googleCalendarEventId: eventId),
+      ),
+    );
   }
 
   Future<T> _enqueue<T>(Future<T> Function() action) {
@@ -415,12 +668,16 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
   }
 
   Future<({AppointmentEntity entity, String? warning})> _mirrorUpsertToCalendar(
-    AppointmentEntity entity,
-  ) async {
+    AppointmentEntity entity, {
+    bool requestScopeIfNeeded = false,
+  }) async {
     try {
       final eventId = entity.googleCalendarEventId;
       if (eventId == null || eventId.isEmpty) {
-        final remoteId = await _calendar.insertEvent(entity);
+        final remoteId = await _calendar.insertEvent(
+          entity,
+          requestScopeIfNeeded: requestScopeIfNeeded,
+        );
         return (
           entity: entity.copyWith(googleCalendarEventId: remoteId),
           warning: null,
@@ -428,11 +685,17 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
       }
 
       try {
-        await _calendar.patchEvent(entity);
+        await _calendar.patchEvent(
+          entity,
+          requestScopeIfNeeded: requestScopeIfNeeded,
+        );
         return (entity: entity, warning: null);
       } on calendar.DetailedApiRequestError catch (error) {
         if (error.status == 404 || error.status == 410) {
-          final remoteId = await _calendar.insertEvent(entity);
+          final remoteId = await _calendar.insertEvent(
+            entity,
+            requestScopeIfNeeded: requestScopeIfNeeded,
+          );
           return (
             entity: entity.copyWith(googleCalendarEventId: remoteId),
             warning: null,
@@ -440,29 +703,32 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
         }
         rethrow;
       }
-    } on CalendarAuthUnavailableException {
-      return (
-        entity: entity,
-        warning:
-            'Firestore sincronizado, pero falta permiso de Google Calendar.',
-      );
+    } on CalendarAuthUnavailableException catch (error) {
+      return (entity: entity, warning: _describeCalendarError(error));
     } on calendar.DetailedApiRequestError catch (error) {
-      if (error.status == 403) {
-        return (
-          entity: entity,
-          warning: 'Firestore sincronizado; Google Calendar API sin permisos (HTTP 403).',
-        );
-      }
-      if (error.status == 401) {
-        return (
-          entity: entity,
-          warning: 'Firestore sincronizado; sesión de Google Calendar expirada (HTTP 401).',
-        );
+      if (error.status == 403 || error.status == 401) {
+        return (entity: entity, warning: _describeCalendarError(error));
       }
       return (entity: entity, warning: null);
     } catch (_) {
       return (entity: entity, warning: null);
     }
+  }
+
+  String _describeCalendarError(Object error) {
+    if (error is CalendarAuthUnavailableException) {
+      return 'Firestore sincronizado, pero falta permiso de Google Calendar.';
+    }
+    if (error is calendar.DetailedApiRequestError) {
+      if (error.status == 403) {
+        return 'Firestore sincronizado; Google Calendar API sin permisos (HTTP 403).';
+      }
+      if (error.status == 401) {
+        return 'Firestore sincronizado; sesión de Google Calendar expirada (HTTP 401).';
+      }
+      return 'Firestore sincronizado, pero no se pudo verificar Google Calendar (HTTP ${error.status}).';
+    }
+    return 'Firestore sincronizado, pero no se pudo verificar Google Calendar.';
   }
 
   Future<String?> _mirrorDeleteFromCalendar(String? eventId) async {
@@ -512,6 +778,11 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
 
   bool _secondsAfter(DateTime a, DateTime b) {
     return (a.toUtc().millisecondsSinceEpoch ~/ 1000) >
+        (b.toUtc().millisecondsSinceEpoch ~/ 1000);
+  }
+
+  bool _sameUnixSecond(DateTime a, DateTime b) {
+    return (a.toUtc().millisecondsSinceEpoch ~/ 1000) ==
         (b.toUtc().millisecondsSinceEpoch ~/ 1000);
   }
 
