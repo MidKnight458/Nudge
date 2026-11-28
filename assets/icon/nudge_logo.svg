@@ -9,7 +9,7 @@
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.14"/>
       <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="dotGrad" x1="68" y1="32" x2="79" y2="43" gradientUnits="userSpaceOnUse">
+    <linearGradient id="dotGrad" x1="69" y1="31.5" x2="79" y2="41.5" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#4ADE80"/>
       <stop offset="1" stop-color="#22C55E"/>
     </linearGradient>
@@ -20,38 +20,38 @@
 
   <!-- Soft drop shadow -->
   <path
-    d="M 40.5,35 L 65.69,35 A 8.2,8.2 0 0 0 75,45.56 L 75,67.5 A 11.5,11.5 0 0 1 63.5,79 L 40.5,79 A 11.5,11.5 0 0 1 29,67.5 L 29,46.5 A 11.5,11.5 0 0 1 40.5,35 Z"
-    transform="translate(0, 2.2)"
+    d="M 43,34 L 66.82,34 A 7.6,7.6 0 0 0 76,43.83 L 76,65 A 11,11 0 0 1 65,76 L 43,76 A 11,11 0 0 1 32,65 L 32,45 A 11,11 0 0 1 43,34 Z"
+    transform="translate(0, 1.8)"
     fill="#072663"
-    fill-opacity="0.16"/>
+    fill-opacity="0.15"/>
 
   <!-- Notched white calendar card -->
   <path
-    d="M 40.5,35 L 65.69,35 A 8.2,8.2 0 0 0 75,45.56 L 75,67.5 A 11.5,11.5 0 0 1 63.5,79 L 40.5,79 A 11.5,11.5 0 0 1 29,67.5 L 29,46.5 A 11.5,11.5 0 0 1 40.5,35 Z"
+    d="M 43,34 L 66.82,34 A 7.6,7.6 0 0 0 76,43.83 L 76,65 A 11,11 0 0 1 65,76 L 43,76 A 11,11 0 0 1 32,65 L 32,45 A 11,11 0 0 1 43,34 Z"
     fill="#FFFFFF"/>
 
   <!-- Material 3 tonal header strip -->
   <path
-    d="M 29,46.5 A 11.5,11.5 0 0 1 40.5,35 L 65.69,35 A 8.2,8.2 0 0 0 75,45.56 L 75,46.5 Z"
+    d="M 32,45 A 11,11 0 0 1 43,34 L 66.82,34 A 7.6,7.6 0 0 0 76,43.83 L 76,45 Z"
     fill="#D3E3FD"/>
 
   <!-- Twin symmetric calendar binder pills -->
   <path
-    d="M 43.0,29.5 A 2.4,2.4 0 0 1 45.4,31.9 L 45.4,37.1 A 2.4,2.4 0 0 1 43.0,39.5 A 2.4,2.4 0 0 1 40.6,37.1 L 40.6,31.9 A 2.4,2.4 0 0 1 43.0,29.5 Z"
+    d="M 45.5,29.0 A 2.3,2.3 0 0 1 47.8,31.3 L 47.8,36.2 A 2.3,2.3 0 0 1 45.5,38.5 A 2.3,2.3 0 0 1 43.2,36.2 L 43.2,31.3 A 2.3,2.3 0 0 1 45.5,29.0 Z"
     fill="#FFFFFF"/>
   <path
-    d="M 61.0,29.5 A 2.4,2.4 0 0 1 63.4,31.9 L 63.4,37.1 A 2.4,2.4 0 0 1 61.0,39.5 A 2.4,2.4 0 0 1 58.6,37.1 L 58.6,31.9 A 2.4,2.4 0 0 1 61.0,29.5 Z"
+    d="M 62.5,29.0 A 2.3,2.3 0 0 1 64.8,31.3 L 64.8,36.2 A 2.3,2.3 0 0 1 62.5,38.5 A 2.3,2.3 0 0 1 60.2,36.2 L 60.2,31.3 A 2.3,2.3 0 0 1 62.5,29.0 Z"
     fill="#FFFFFF"/>
 
   <!-- Bold geometric rounded N -->
   <path
-    d="M 42.5,70.5 L 42.5,55.0 L 61.5,70.5 L 61.5,55.0"
+    d="M 45.0,67.8 L 45.0,53.2 L 63.0,67.8 L 63.0,53.2"
     fill="none"
     stroke="#1558C0"
-    stroke-width="5.4"
+    stroke-width="5.2"
     stroke-linecap="round"
     stroke-linejoin="round"/>
 
   <!-- Emerald-mint Nudge notification dot -->
-  <circle cx="73.5" cy="37.5" r="5.6" fill="url(#dotGrad)"/>
+  <circle cx="74.0" cy="36.5" r="5.2" fill="url(#dotGrad)"/>
 </svg>

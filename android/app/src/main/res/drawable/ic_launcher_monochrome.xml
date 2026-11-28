@@ -8,8 +8,8 @@
     <!-- Notched calendar card outline -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M40.5,35L65.69,35A8.2,8.2 0,0 0,75 45.56L75,67.5A11.5,11.5 0,0 1,63.5 79L40.5,79A11.5,11.5 0,0 1,29 67.5L29,46.5A11.5,11.5 0,0 1,40.5 35Z"
-        android:strokeWidth="4.2"
+        android:pathData="M43,34L66.82,34A7.6,7.6 0,0 0,76 43.83L76,65A11,11 0,0 1,65 76L43,76A11,11 0,0 1,32 65L32,45A11,11 0,0 1,43 34Z"
+        android:strokeWidth="4.0"
         android:strokeColor="#FF000000"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
@@ -17,7 +17,7 @@
     <!-- Header divider line -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M29.5,46.5L74.5,46.5"
+        android:pathData="M32.5,45.0L75.5,45.0"
         android:strokeWidth="3.0"
         android:strokeColor="#FF000000"
         android:strokeLineCap="round" />
@@ -25,16 +25,16 @@
     <!-- Twin binder pills -->
     <path
         android:fillColor="#FF000000"
-        android:pathData="M43.0,29.5A2.4,2.4 0,0 1,45.4 31.9L45.4,37.1A2.4,2.4 0,0 1,43.0 39.5A2.4,2.4 0,0 1,40.6 37.1L40.6,31.9A2.4,2.4 0,0 1,43.0 29.5Z" />
+        android:pathData="M45.5,29.0A2.3,2.3 0,0 1,47.8 31.3L47.8,36.2A2.3,2.3 0,0 1,45.5 38.5A2.3,2.3 0,0 1,43.2 36.2L43.2,31.3A2.3,2.3 0,0 1,45.5 29.0Z" />
     <path
         android:fillColor="#FF000000"
-        android:pathData="M61.0,29.5A2.4,2.4 0,0 1,63.4 31.9L63.4,37.1A2.4,2.4 0,0 1,61.0 39.5A2.4,2.4 0,0 1,58.6 37.1L58.6,31.9A2.4,2.4 0,0 1,61.0 29.5Z" />
+        android:pathData="M62.5,29.0A2.3,2.3 0,0 1,64.8 31.3L64.8,36.2A2.3,2.3 0,0 1,62.5 38.5A2.3,2.3 0,0 1,60.2 36.2L60.2,31.3A2.3,2.3 0,0 1,62.5 29.0Z" />
 
     <!-- Bold geometric rounded N -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M42.5,70.5L42.5,55.0L61.5,70.5L61.5,55.0"
-        android:strokeWidth="5.4"
+        android:pathData="M45.0,67.8L45.0,53.2L63.0,67.8L63.0,53.2"
+        android:strokeWidth="5.2"
         android:strokeColor="#FF000000"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
@@ -42,5 +42,5 @@
     <!-- Nudge dot -->
     <path
         android:fillColor="#FF000000"
-        android:pathData="M73.5,31.9A5.6,5.6 0,1 0,73.5 43.1A5.6,5.6 0,1 0,73.5 31.9Z" />
+        android:pathData="M74.0,31.3A5.2,5.2 0,1 0,74.0 41.7A5.2,5.2 0,1 0,74.0 31.3Z" />
 </vector>
