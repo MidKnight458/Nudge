@@ -1,8 +1,12 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:googleapis/calendar/v3.dart' as calendar;
 import 'package:material_ui/material_ui.dart';
 import 'package:nudge/core/theme/pixel_shapes.dart';
+import 'package:nudge/features/appointments/data/google_calendar_datasource.dart';
 import 'package:nudge/features/appointments/domain/entities/appointment_entity.dart';
+import 'package:nudge/features/appointments/presentation/controllers/appointments_controller.dart';
+import 'package:nudge/features/auth/presentation/auth_controller.dart';
 import 'package:nudge/features/reminders/presentation/template_editor_sheet.dart';
 import 'package:nudge/features/settings/data/settings_repository.dart';
 import 'package:nudge/features/settings/domain/app_preferences.dart';
@@ -632,6 +636,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 14),
+          _SectionCard(
+            icon: Icons.calendar_month_outlined,
+            title: 'Calendario "Nudge"',
+            subtitle: 'Tus citas se guardan en un calendario dedicado llamado "Nudge". Compártelo con tu cuenta personal para verlo en el widget de Google Calendar.',
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonalIcon(
+                  onPressed: _shareNudgeCalendar,
+                  icon: const Icon(Icons.share_outlined, size: 18),
+                  label: const Text('Compartir con otra cuenta'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _verifyNudgeCalendar,
+                  icon: const Icon(Icons.event_available_outlined, size: 18),
+                  label: const Text('Verificar calendario'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
           Card(
             child: ListTile(
               shape: PixelShapes.cardShape,
@@ -654,6 +680,179 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _verifyNudgeCalendar() async {
+    HapticFeedback.lightImpact();
+    if (!ref.read(authControllerProvider).isSignedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Conecta tu cuenta de Google en Agenda para verificar el calendario.',
+          ),
+        ),
+      );
+      return;
+    }
+    try {
+      await ref
+          .read(googleCalendarDatasourceProvider)
+          .ensureNudgeCalendar(requestScopeIfNeeded: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Calendario "Nudge" listo en tu cuenta de Google Calendar.',
+            ),
+          ),
+        );
+      }
+    } on CalendarAuthUnavailableException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Concede acceso a Google Calendar para crear o verificar el calendario.',
+            ),
+          ),
+        );
+      }
+    } on calendar.DetailedApiRequestError catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'No se pudo verificar el calendario (HTTP ${error.status}).',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo verificar el calendario "Nudge".'),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareNudgeCalendar() async {
+    HapticFeedback.lightImpact();
+    if (!ref.read(authControllerProvider).isSignedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Conecta tu cuenta de Google en Agenda para compartir el calendario.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final emailController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final recipientEmail = await showDialog<String>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Compartir calendario "Nudge"'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Se enviará una invitación de solo lectura a tu cuenta personal para que puedas agregarlo y usar su widget en Google Calendar.',
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: emailController,
+                  autofocus: true,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Correo de Google receptor',
+                    hintText: 'tucuenta@gmail.com',
+                    prefixIcon: Icon(Icons.alternate_email_rounded),
+                  ),
+                  validator: (String? value) {
+                    if (value == null ||
+                        !GoogleCalendarDatasourceImpl.isValidEmail(value)) {
+                      return 'Ingresa un correo electrónico válido.';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.of(dialogContext).pop(emailController.text.trim());
+                }
+              },
+              child: const Text('Compartir'),
+            ),
+          ],
+        );
+      },
+    );
+
+    emailController.dispose();
+    if (recipientEmail == null || !mounted) {
+      return;
+    }
+
+    try {
+      await ref
+          .read(googleCalendarDatasourceProvider)
+          .shareNudgeCalendarWithEmail(recipientEmail);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Calendario "Nudge" compartido con $recipientEmail. Revisa tu correo para agregarlo a Google Calendar.',
+            ),
+          ),
+        );
+      }
+    } on CalendarAuthUnavailableException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Permiso de Google Calendar requerido para compartir el calendario.',
+            ),
+          ),
+        );
+      }
+    } on calendar.DetailedApiRequestError catch (error) {
+      if (mounted) {
+        final msg = error.status == 403
+            ? 'Tu cuenta o administrador no permite compartir este calendario.'
+            : 'No se pudo compartir el calendario (HTTP ${error.status}).';
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo compartir el calendario "Nudge".'),
+          ),
+        );
+      }
+    }
   }
 }
 

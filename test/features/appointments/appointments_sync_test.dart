@@ -67,7 +67,9 @@ class _FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<AuthenticatedCalendarClient?> openCalendarClient() async => null;
+  Future<AuthenticatedCalendarClient?> openCalendarClient({
+    bool requestScopeIfNeeded = false,
+  }) async => null;
 
   @override
   Future<AuthenticatedDriveClient?> openDriveClient({
@@ -82,11 +84,29 @@ class _FakeAuthRepository implements AuthRepository {
 
 class _SharedFakeGoogleCalendarDatasource implements GoogleCalendarDatasource {
   final Map<String, calendar.Event> eventsById = <String, calendar.Event>{};
+  final List<String> sharedEmails = <String>[];
+  int ensureCalendarCount = 0;
   int insertCount = 0;
   int patchCount = 0;
   int deleteCount = 0;
   int _nextId = 1;
   Object? errorToThrowOnWrite;
+
+  @override
+  Future<String> ensureNudgeCalendar({
+    bool requestScopeIfNeeded = false,
+  }) async {
+    ensureCalendarCount++;
+    return 'nudge_calendar_id';
+  }
+
+  @override
+  Future<void> shareNudgeCalendarWithEmail(
+    String email, {
+    String role = 'reader',
+  }) async {
+    sharedEmails.add(email);
+  }
 
   @override
   Future<String> insertEvent(AppointmentEntity appointment) async {
@@ -951,5 +971,81 @@ void main() {
         expect(await localA.getLastAccountUid(), isNull);
       },
     );
+
+    test('selects owned secondary Nudge calendar cleanly and validates share emails', () {
+      final entries = <calendar.CalendarListEntry>[
+        calendar.CalendarListEntry(
+          id: 'primary@work.com',
+          summary: 'Nudge',
+          primary: true,
+          accessRole: 'owner',
+        ),
+        calendar.CalendarListEntry(
+          id: 'shared_ro_cal',
+          summary: 'Nudge',
+          accessRole: 'reader',
+        ),
+        calendar.CalendarListEntry(
+          id: 'deleted_nudge_cal',
+          summary: 'Nudge',
+          deleted: true,
+          accessRole: 'owner',
+        ),
+        calendar.CalendarListEntry(
+          id: 'owned_nudge_cal_123',
+          summary: '  nudge  ',
+          primary: false,
+          accessRole: 'owner',
+        ),
+      ];
+
+      expect(
+        GoogleCalendarDatasourceImpl.findOwnedNudgeCalendarId(entries),
+        'owned_nudge_cal_123',
+      );
+      expect(
+        GoogleCalendarDatasourceImpl.isValidEmail('personal@gmail.com'),
+        isTrue,
+      );
+      expect(
+        GoogleCalendarDatasourceImpl.isValidEmail('correo-invalido'),
+        isFalse,
+      );
+    });
+
+    test('synchronize ensures dedicated Nudge calendar and re-inserts legacy 404 patch events cleanly', () async {
+      final created = await repoA.createAppointment(
+        AppointmentInput(
+          clientName: 'Héctor León',
+          clientRawPhone: '5588990011',
+          clientPhoneE164: '5215588990011',
+          title: 'Consulta heredada',
+          startTime: DateTime(2026, 12, 4, 10, 0),
+          endTime: DateTime(2026, 12, 4, 11, 0),
+        ),
+      );
+
+      // Simulate legacy event ID from pre-v1.4 primary calendar (not present in Nudge calendar).
+      calendarMirror.eventsById.clear();
+
+      final updated = await repoA.updateAppointment(
+        created,
+        AppointmentInput(
+          clientName: 'Héctor León',
+          clientRawPhone: '5588990011',
+          clientPhoneE164: '5215588990011',
+          title: 'Consulta migrada',
+          startTime: DateTime(2026, 12, 4, 10, 30),
+          endTime: DateTime(2026, 12, 4, 11, 30),
+        ),
+      );
+      expect(
+        updated.googleCalendarEventId,
+        isNot(created.googleCalendarEventId),
+      );
+
+      await repoA.synchronize();
+      expect(calendarMirror.ensureCalendarCount, greaterThanOrEqualTo(1));
+    });
   });
 }

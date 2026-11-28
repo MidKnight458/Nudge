@@ -9,9 +9,10 @@ abstract final class AppConstants {
   /// Android contact account type used to prioritize Google Contacts.
   static const String googleAccountType = 'com.google';
 
-  /// Google Calendar API v3 read/write events scope.
+  /// Google Calendar API v3 full calendar scope (allows creating, syncing,
+  /// and sharing the dedicated secondary "Nudge" calendar).
   static const String calendarScope =
-      'https://www.googleapis.com/auth/calendar.events';
+      'https://www.googleapis.com/auth/calendar';
 
   /// Google Drive scope restricted to files created by Nudge.
   static const String driveFileScope =
@@ -19,6 +20,11 @@ abstract final class AppConstants {
 
   /// Root folder created in the user's Google Drive for client attachments.
   static const String driveFolderName = 'Nudge';
+
+  /// Dedicated secondary Google Calendar name & description.
+  static const String nudgeCalendarName = 'Nudge';
+  static const String nudgeCalendarDescription =
+      'Citas agendadas y sincronizadas desde Nudge.';
 
   /// Primary Google Calendar identifier.
   static const String primaryCalendarId = 'primary';

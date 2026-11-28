@@ -165,14 +165,34 @@ class GoogleAuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<AuthenticatedCalendarClient?> openCalendarClient() async {
-    if (_googleSignIn.currentUser == null) {
+  Future<AuthenticatedCalendarClient?> openCalendarClient({
+    bool requestScopeIfNeeded = false,
+  }) async {
+    var account = _googleSignIn.currentUser;
+    if (account == null) {
       try {
-        await _googleSignIn.signInSilently();
+        account = await _googleSignIn.signInSilently();
       } catch (_) {
         return null;
       }
     }
+    if (account == null) {
+      return null;
+    }
+
+    if (requestScopeIfNeeded) {
+      try {
+        final granted = await _googleSignIn.requestScopes(const <String>[
+          AppConstants.calendarScope,
+        ]);
+        if (!granted) {
+          return null;
+        }
+      } catch (_) {
+        return null;
+      }
+    }
+
     final authClient = await _googleSignIn.authenticatedClient();
     if (authClient == null) {
       return null;

@@ -59,7 +59,9 @@ abstract interface class AuthRepository {
 
   Future<void> clearAuthCache();
 
-  Future<AuthenticatedCalendarClient?> openCalendarClient();
+  Future<AuthenticatedCalendarClient?> openCalendarClient({
+    bool requestScopeIfNeeded = false,
+  });
 
   Future<AuthenticatedDriveClient?> openDriveClient({
     bool requestScopeIfNeeded = false,

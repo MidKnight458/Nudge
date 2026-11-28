@@ -253,6 +253,13 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
     String? calendarWarning;
 
     try {
+      // 0. Proactively ensure dedicated secondary "Nudge" Google Calendar exists.
+      try {
+        await _calendar.ensureNudgeCalendar();
+      } catch (_) {
+        // Non-fatal: individual operations surface actionable Calendar warnings.
+      }
+
       // 1. Fetch Cloud Firestore state so tombstone conflicts and migrations can be resolved.
       final cloudDocs = await _firestore.fetchAppointments(user.id);
       final cloudBySyncId = <String, CloudAppointmentDocument>{
