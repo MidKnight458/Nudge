@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Soft drop shadow under calendar card -->
+    <group android:translateY="2.2">
+        <path
+            android:fillColor="#28072663"
+            android:pathData="M40.5,35L65.69,35A8.2,8.2 0,0 0,75 45.56L75,67.5A11.5,11.5 0,0 1,63.5 79L40.5,79A11.5,11.5 0,0 1,29 67.5L29,46.5A11.5,11.5 0,0 1,40.5 35Z" />
+    </group>
+
+    <!-- Rounded notched white calendar card -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M40.5,35L65.69,35A8.2,8.2 0,0 0,75 45.56L75,67.5A11.5,11.5 0,0 1,63.5 79L40.5,79A11.5,11.5 0,0 1,29 67.5L29,46.5A11.5,11.5 0,0 1,40.5 35Z" />
+
+    <!-- Material 3 tonal ice-blue header strip -->
+    <path
+        android:fillColor="#FFD3E3FD"
+        android:pathData="M29,46.5A11.5,11.5 0,0 1,40.5 35L65.69,35A8.2,8.2 0,0 0,75 45.56L75,46.5Z" />
+
+    <!-- Twin white binder pills -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M43.0,29.5A2.4,2.4 0,0 1,45.4 31.9L45.4,37.1A2.4,2.4 0,0 1,43.0 39.5A2.4,2.4 0,0 1,40.6 37.1L40.6,31.9A2.4,2.4 0,0 1,43.0 29.5Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M61.0,29.5A2.4,2.4 0,0 1,63.4 31.9L63.4,37.1A2.4,2.4 0,0 1,61.0 39.5A2.4,2.4 0,0 1,58.6 37.1L58.6,31.9A2.4,2.4 0,0 1,61.0 29.5Z" />
+
+    <!-- Bold geometric rounded N -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M42.5,70.5L42.5,55.0L61.5,70.5L61.5,55.0"
+        android:strokeWidth="5.4"
+        android:strokeColor="#FF1558C0"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Emerald-mint Nudge notification dot -->
+    <path android:pathData="M73.5,31.9A5.6,5.6 0,1 0,73.5 43.1A5.6,5.6 0,1 0,73.5 31.9Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="68"
+                android:startY="32"
+                android:endX="79"
+                android:endY="43">
+                <item android:color="#FF4ADE80" android:offset="0.0" />
+                <item android:color="#FF22C55E" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>
