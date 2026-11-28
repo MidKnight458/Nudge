@@ -50,6 +50,27 @@ final selectedDayAppointmentsProvider = StreamProvider<List<AppointmentEntity>>(
   },
 );
 
+/// Reactive list of appointments for any given local calendar day.
+final appointmentsForDateProvider =
+    StreamProvider.family<List<AppointmentEntity>, DateTime>((
+      Ref ref,
+      DateTime day,
+    ) {
+      final normalized = DateFormatters.startOfDay(day);
+      final repository = ref.watch(appointmentsRepositoryProvider);
+      return repository.watchAppointmentsForDay(normalized);
+    });
+
+/// Reactive earliest future day's appointments after [selectedDateProvider].
+final nextUpcomingDayProvider =
+    StreamProvider<({DateTime? date, List<AppointmentEntity> appointments})>((
+      Ref ref,
+    ) {
+      final selectedDate = ref.watch(selectedDateProvider);
+      final repository = ref.watch(appointmentsRepositoryProvider);
+      return repository.watchNextUpcomingDayAppointments(selectedDate);
+    });
+
 /// Reactive list of all appointments scheduled for tomorrow.
 final tomorrowAppointmentsProvider = StreamProvider<List<AppointmentEntity>>((
   Ref ref,

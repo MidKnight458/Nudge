@@ -6,24 +6,17 @@ import 'package:nudge/core/theme/pixel_shapes.dart';
 import 'package:nudge/features/reminders/data/whatsapp_launcher_service.dart';
 import 'package:nudge/features/reminders/domain/reminder_template.dart';
 
-/// Expressive bottom sheet to customize WhatsApp reminder message templates.
+/// Expressive bottom sheet to customize the single WhatsApp confirmation
+/// response template.
 class TemplateEditorSheet extends ConsumerStatefulWidget {
-  const TemplateEditorSheet({
-    super.key,
-    this.initialTemplateId = AppConstants.tomorrowTemplateId,
-  });
+  const TemplateEditorSheet({super.key});
 
-  final String initialTemplateId;
-
-  static Future<void> show(
-    BuildContext context, {
-    String initialTemplateId = AppConstants.tomorrowTemplateId,
-  }) {
+  static Future<void> show(BuildContext context) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => TemplateEditorSheet(initialTemplateId: initialTemplateId),
+      builder: (_) => const TemplateEditorSheet(),
     );
   }
 
@@ -33,7 +26,6 @@ class TemplateEditorSheet extends ConsumerStatefulWidget {
 }
 
 class _TemplateEditorSheetState extends ConsumerState<TemplateEditorSheet> {
-  late String _selectedTemplateId;
   late final TextEditingController _controller;
   bool _initializedFromTemplates = false;
   bool _isSaving = false;
@@ -41,9 +33,8 @@ class _TemplateEditorSheetState extends ConsumerState<TemplateEditorSheet> {
   @override
   void initState() {
     super.initState();
-    _selectedTemplateId = widget.initialTemplateId;
     _controller = TextEditingController(
-      text: ReminderTemplateEngine.defaultBodyFor(_selectedTemplateId),
+      text: AppConstants.defaultTomorrowReminderBody,
     );
   }
 
@@ -58,25 +49,12 @@ class _TemplateEditorSheetState extends ConsumerState<TemplateEditorSheet> {
       return;
     }
     final match = templates
-        .where((t) => t.id == _selectedTemplateId)
+        .where((t) => t.id == AppConstants.tomorrowTemplateId)
         .firstOrNull;
     if (match != null) {
       _controller.text = match.body;
       _initializedFromTemplates = true;
     }
-  }
-
-  void _switchTemplate(
-    String templateId,
-    List<ReminderTemplateEntity> templates,
-  ) {
-    HapticFeedback.lightImpact();
-    final match = templates.where((t) => t.id == templateId).firstOrNull;
-    setState(() {
-      _selectedTemplateId = templateId;
-      _controller.text =
-          match?.body ?? ReminderTemplateEngine.defaultBodyFor(templateId);
-    });
   }
 
   void _insertPlaceholder(String variable) {
@@ -105,9 +83,7 @@ class _TemplateEditorSheetState extends ConsumerState<TemplateEditorSheet> {
   Future<void> _restoreDefault() async {
     HapticFeedback.lightImpact();
     setState(() {
-      _controller.text = ReminderTemplateEngine.defaultBodyFor(
-        _selectedTemplateId,
-      );
+      _controller.text = AppConstants.defaultTomorrowReminderBody;
     });
   }
 
@@ -124,12 +100,15 @@ class _TemplateEditorSheetState extends ConsumerState<TemplateEditorSheet> {
     try {
       await ref
           .read(reminderTemplatesRepositoryProvider)
-          .saveTemplate(templateId: _selectedTemplateId, body: text);
+          .saveTemplate(
+            templateId: AppConstants.tomorrowTemplateId,
+            body: text,
+          );
       await HapticFeedback.lightImpact();
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Plantilla de WhatsApp guardada.')),
+          const SnackBar(content: Text('Plantilla de Respuesta guardada.')),
         );
       }
     } finally {
@@ -165,32 +144,24 @@ class _TemplateEditorSheetState extends ConsumerState<TemplateEditorSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Plantillas de WhatsApp', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(
-              'Personaliza los mensajes rápidos sin usar APIs de pago.',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            SegmentedButton<String>(
-              segments: const <ButtonSegment<String>>[
-                ButtonSegment<String>(
-                  value: AppConstants.tomorrowTemplateId,
-                  label: Text('Recordatorio'),
-                  icon: Icon(Icons.notifications_active_outlined),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Plantilla de Respuesta',
+                    style: theme.textTheme.titleLarge,
+                  ),
                 ),
-                ButtonSegment<String>(
-                  value: AppConstants.confirmationTemplateId,
+                const Chip(
+                  avatar: Icon(Icons.check_circle_outline_rounded, size: 16),
                   label: Text('Confirmación'),
-                  icon: Icon(Icons.check_circle_outline_rounded),
                 ),
               ],
-              selected: <String>{_selectedTemplateId},
-              onSelectionChanged: (Set<String> selection) {
-                if (selection.isNotEmpty) {
-                  _switchTemplate(selection.first, templates);
-                }
-              },
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Personaliza el mensaje de confirmación que se enviará por WhatsApp.',
+              style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -213,7 +184,7 @@ class _TemplateEditorSheetState extends ConsumerState<TemplateEditorSheet> {
               minLines: 3,
               onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
-                labelText: 'Mensaje de la plantilla',
+                labelText: 'Mensaje de confirmación',
                 alignLabelWithHint: true,
               ),
             ),

@@ -13,6 +13,13 @@ abstract final class AppConstants {
   static const String calendarScope =
       'https://www.googleapis.com/auth/calendar.events';
 
+  /// Google Drive scope restricted to files created by Nudge.
+  static const String driveFileScope =
+      'https://www.googleapis.com/auth/drive.file';
+
+  /// Root folder created in the user's Google Drive for client attachments.
+  static const String driveFolderName = 'Nudge';
+
   /// Primary Google Calendar identifier.
   static const String primaryCalendarId = 'primary';
 
@@ -29,7 +36,7 @@ abstract final class AppConstants {
 
   /// Default WhatsApp template identifiers and bodies.
   static const String tomorrowTemplateId = 'tomorrow_reminder';
-  static const String tomorrowTemplateName = 'Recordatorio de mañana';
+  static const String tomorrowTemplateName = 'Confirmación';
   static const String defaultTomorrowReminderBody =
       'Hola {cliente}, te recordamos tu cita de {servicio} mañana a las {hora}. '
       'Por favor confírmanos si podrás asistir.';
@@ -39,6 +46,11 @@ abstract final class AppConstants {
   static const String defaultConfirmationBody =
       'Hola {cliente}, tu cita de {servicio} quedó agendada para el {fecha} '
       'a las {hora}. ¡Te esperamos!';
+
+  /// Configurable labels & slot defaults.
+  static const String defaultClientLabelPlural = 'Clientes';
+  static const String defaultClientLabelSingular = 'Cliente';
+  static const int defaultSlotDurationMinutes = 30;
 
   /// Default initial sync lookback window when no `syncToken` is stored.
   static const Duration initialSyncLookback = Duration(days: 30);

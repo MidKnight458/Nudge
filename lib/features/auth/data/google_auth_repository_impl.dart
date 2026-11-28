@@ -2,11 +2,12 @@ import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sig
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/calendar/v3.dart' as calendar;
+import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/firebase/firebase_bootstrap.dart';
 import 'package:nudge/features/auth/domain/auth_repository.dart';
 
-/// Google Sign-In backed by Firebase Auth and Calendar Events authorization.
+/// Google Sign-In backed by Firebase Auth and Calendar/Drive authorization.
 class GoogleAuthRepositoryImpl implements AuthRepository {
   GoogleAuthRepositoryImpl({
     GoogleSignIn? googleSignIn,
@@ -14,7 +15,12 @@ class GoogleAuthRepositoryImpl implements AuthRepository {
     bool Function()? isFirebaseReady,
   }) : _googleSignIn =
            googleSignIn ??
-           GoogleSignIn(scopes: const <String>[AppConstants.calendarScope]),
+           GoogleSignIn(
+             scopes: const <String>[
+               AppConstants.calendarScope,
+               AppConstants.driveFileScope,
+             ],
+           ),
        _firebaseAuthOverride = firebaseAuth,
        _isFirebaseReady =
            isFirebaseReady ?? (() => FirebaseBootstrap.isInitialized);
@@ -174,6 +180,46 @@ class GoogleAuthRepositoryImpl implements AuthRepository {
 
     return AuthenticatedCalendarClient(
       api: calendar.CalendarApi(authClient),
+      close: authClient.close,
+    );
+  }
+
+  @override
+  Future<AuthenticatedDriveClient?> openDriveClient({
+    bool requestScopeIfNeeded = false,
+  }) async {
+    var account = _googleSignIn.currentUser;
+    if (account == null) {
+      try {
+        account = await _googleSignIn.signInSilently();
+      } catch (_) {
+        return null;
+      }
+    }
+    if (account == null) {
+      return null;
+    }
+
+    if (requestScopeIfNeeded) {
+      try {
+        final granted = await _googleSignIn.requestScopes(const <String>[
+          AppConstants.driveFileScope,
+        ]);
+        if (!granted) {
+          return null;
+        }
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final authClient = await _googleSignIn.authenticatedClient();
+    if (authClient == null) {
+      return null;
+    }
+
+    return AuthenticatedDriveClient(
+      api: drive.DriveApi(authClient),
       close: authClient.close,
     );
   }

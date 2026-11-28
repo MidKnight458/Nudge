@@ -61,6 +61,12 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
   }
 
   @override
+  Stream<({DateTime? date, List<AppointmentEntity> appointments})>
+  watchNextUpcomingDayAppointments(DateTime afterDay) {
+    return _local.watchNextUpcomingDayAppointments(afterDay);
+  }
+
+  @override
   Stream<int> watchPendingSyncCount() => _local.watchPendingSyncCount();
 
   @override

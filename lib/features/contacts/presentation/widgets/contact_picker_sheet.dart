@@ -1,15 +1,18 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/theme/pixel_shapes.dart';
 import 'package:nudge/core/utils/phone_sanitizer.dart';
+import 'package:nudge/features/auth/presentation/auth_controller.dart';
 import 'package:nudge/features/contacts/domain/contacts_repository.dart';
 import 'package:nudge/features/contacts/domain/entities/contact_entity.dart';
 import 'package:nudge/features/contacts/presentation/contacts_controller.dart';
+import 'package:nudge/features/settings/data/settings_repository.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 /// Expressive modal bottom sheet for picking a Google-prioritized contact
-/// or entering a client manually with live E.164 validation.
+/// or entering a client manually with optional Google Contacts saving.
 class ContactPickerSheet extends ConsumerStatefulWidget {
   const ContactPickerSheet({super.key});
 
@@ -33,7 +36,10 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
   final GlobalKey<FormState> _manualFormKey = GlobalKey<FormState>();
 
   bool _manualMode = false;
-  String? _manualE164Preview;
+  bool _saveToGoogleContacts = true;
+  bool _isSavingManual = false;
+  String? _selectedGoogleAccount;
+  String? _manualPhonePreview;
 
   @override
   void dispose() {
@@ -45,28 +51,94 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
 
   void _updateManualPreview(String value) {
     setState(() {
-      _manualE164Preview = PhoneSanitizer.sanitizeToE164Digits(value);
+      _manualPhonePreview = PhoneSanitizer.sanitizeToE164Digits(value);
     });
   }
 
-  void _submitManualContact() {
+  List<String> _resolveAvailableGoogleAccounts(ContactsState contactsState) {
+    final signedInEmail = ref.read(authControllerProvider).user?.email.trim();
+    final merged = <String>{
+      if (signedInEmail != null && signedInEmail.isNotEmpty) signedInEmail,
+      ...contactsState.deviceGoogleAccounts,
+    };
+    return merged.toList(growable: false);
+  }
+
+  Future<void> _submitManualContact(ContactsState contactsState) async {
     if (!(_manualFormKey.currentState?.validate() ?? false)) {
       return;
     }
+    final displayName = _manualNameController.text.trim();
     final rawPhone = _manualPhoneController.text.trim();
     final e164 = PhoneSanitizer.sanitizeToE164Digits(rawPhone);
     if (e164 == null) {
       return;
     }
-    HapticFeedback.lightImpact();
-    Navigator.of(context).pop(
-      ContactEntity(
-        displayName: _manualNameController.text.trim(),
-        rawPhone: rawPhone,
-        phoneE164: e164,
-        isGoogleAccount: false,
-      ),
-    );
+
+    final availableAccounts = _resolveAvailableGoogleAccounts(contactsState);
+    final targetAccount =
+        _selectedGoogleAccount ??
+        (availableAccounts.isNotEmpty ? availableAccounts.first : null);
+
+    setState(() => _isSavingManual = true);
+    try {
+      late final ContactEntity result;
+      if (_saveToGoogleContacts) {
+        try {
+          result = await ref
+              .read(contactsControllerProvider.notifier)
+              .saveManualContactToGoogle(
+                displayName: displayName,
+                rawPhone: rawPhone,
+                phoneE164: e164,
+                googleAccountName: targetAccount,
+              );
+        } on StateError catch (error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(error.message)));
+          }
+          result = ContactEntity(
+            displayName: displayName,
+            rawPhone: rawPhone,
+            phoneE164: e164,
+            isGoogleAccount: false,
+          );
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Se usará en Nudge; no se pudo guardar en Contactos de Google.',
+                ),
+              ),
+            );
+          }
+          result = ContactEntity(
+            displayName: displayName,
+            rawPhone: rawPhone,
+            phoneE164: e164,
+            isGoogleAccount: false,
+          );
+        }
+      } else {
+        result = ContactEntity(
+          displayName: displayName,
+          rawPhone: rawPhone,
+          phoneE164: e164,
+          isGoogleAccount: false,
+        );
+      }
+
+      await HapticFeedback.lightImpact();
+      if (mounted) {
+        Navigator.of(context).pop(result);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingManual = false);
+      }
+    }
   }
 
   @override
@@ -74,6 +146,10 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final state = ref.watch(contactsControllerProvider);
+    final prefs = ref.watch(appPreferencesProvider).valueOrNull;
+    final singularLabel =
+        prefs?.clientLabelSingular ?? AppConstants.defaultClientLabelSingular;
+    final singularLower = singularLabel.toLowerCase();
     final filtered = state.filteredContacts;
     final viewInsets = MediaQuery.viewInsetsOf(context);
 
@@ -81,7 +157,7 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
       padding: EdgeInsets.only(bottom: viewInsets.bottom),
       child: DraggableScrollableSheet(
         expand: false,
-        initialChildSize: _manualMode ? 0.62 : 0.84,
+        initialChildSize: _manualMode ? 0.68 : 0.84,
         minChildSize: 0.45,
         maxChildSize: 0.94,
         builder: (BuildContext context, ScrollController scrollController) {
@@ -97,14 +173,14 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
                         children: [
                           Text(
                             _manualMode
-                                ? 'Nuevo cliente manual'
-                                : 'Seleccionar cliente',
+                                ? 'Nuevo $singularLower'
+                                : 'Seleccionar $singularLower',
                             style: theme.textTheme.titleLarge,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             _manualMode
-                                ? 'Se normalizará a E.164 para WhatsApp'
+                                ? 'Guárdalo directo en Google o úsalo solo aquí'
                                 : 'Contactos de Google priorizados',
                             style: theme.textTheme.bodyMedium,
                           ),
@@ -112,18 +188,21 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
                       ),
                     ),
                     TextButton.icon(
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        setState(() {
-                          _manualMode = !_manualMode;
-                          if (_manualMode &&
-                              _manualNameController.text.isEmpty &&
-                              _searchController.text.trim().isNotEmpty) {
-                            _manualNameController.text = _searchController.text
-                                .trim();
-                          }
-                        });
-                      },
+                      onPressed: _isSavingManual
+                          ? null
+                          : () {
+                              HapticFeedback.lightImpact();
+                              setState(() {
+                                _manualMode = !_manualMode;
+                                if (_manualMode &&
+                                    _manualNameController.text.isEmpty &&
+                                    _searchController.text.trim().isNotEmpty) {
+                                  _manualNameController.text = _searchController
+                                      .text
+                                      .trim();
+                                }
+                              });
+                            },
                       icon: Icon(
                         _manualMode
                             ? Icons.contacts_outlined
@@ -139,7 +218,12 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
                   child: SingleChildScrollView(
                     controller: scrollController,
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                    child: _buildManualForm(theme, colorScheme),
+                    child: _buildManualForm(
+                      theme,
+                      colorScheme,
+                      state,
+                      singularLower,
+                    ),
                   ),
                 )
               else ...[
@@ -179,6 +263,7 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
                     state: state,
                     filtered: filtered,
                     scrollController: scrollController,
+                    singularLower: singularLower,
                   ),
                 ),
               ],
@@ -189,7 +274,19 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
     );
   }
 
-  Widget _buildManualForm(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildManualForm(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    ContactsState state,
+    String singularLower,
+  ) {
+    final googleAccounts = _resolveAvailableGoogleAccounts(state);
+    final activeAccount =
+        _selectedGoogleAccount != null &&
+            googleAccounts.contains(_selectedGoogleAccount)
+        ? _selectedGoogleAccount
+        : (googleAccounts.isNotEmpty ? googleAccounts.first : null);
+
     return Form(
       key: _manualFormKey,
       child: Column(
@@ -198,13 +295,13 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
           TextFormField(
             controller: _manualNameController,
             textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
-              labelText: 'Nombre del cliente',
-              prefixIcon: Icon(Icons.person_outline_rounded),
+            decoration: InputDecoration(
+              labelText: 'Nombre del $singularLower',
+              prefixIcon: const Icon(Icons.person_outline_rounded),
             ),
             validator: (String? value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Ingresa el nombre del cliente.';
+                return 'Ingresa el nombre del $singularLower.';
               }
               return null;
             },
@@ -216,7 +313,7 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
             onChanged: _updateManualPreview,
             decoration: const InputDecoration(
               labelText: 'Teléfono WhatsApp',
-              hintText: 'Ej. 461 123 4567 o +52 1 461 123 4567',
+              hintText: 'Ej. 461 123 4567 o +52 461 123 4567',
               prefixIcon: Icon(Icons.phone_outlined),
             ),
             validator: (String? value) {
@@ -224,7 +321,7 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
                 return 'Ingresa un número telefónico.';
               }
               if (PhoneSanitizer.sanitizeToE164Digits(value) == null) {
-                return 'Número inválido para formato internacional E.164.';
+                return 'Ingresa un número telefónico válido con lada o código de país.';
               }
               return null;
             },
@@ -232,10 +329,10 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
           const SizedBox(height: 12),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 200),
-            child: _manualE164Preview == null
+            child: _manualPhonePreview == null
                 ? const SizedBox.shrink()
                 : Container(
-                    key: ValueKey<String>(_manualE164Preview!),
+                    key: ValueKey<String>(_manualPhonePreview!),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: 10,
@@ -256,7 +353,7 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'wa.me/$_manualE164Preview',
+                            'Listo para WhatsApp · ${PhoneSanitizer.formatForDisplay(_manualPhonePreview!)}',
                             style: theme.textTheme.labelMedium?.copyWith(
                               color: colorScheme.onPrimaryContainer,
                             ),
@@ -266,11 +363,74 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
                     ),
                   ),
           ),
+          const SizedBox(height: 14),
+          Card(
+            child: Column(
+              children: [
+                SwitchListTile(
+                  value: _saveToGoogleContacts,
+                  onChanged: _isSavingManual
+                      ? null
+                      : (bool value) {
+                          HapticFeedback.lightImpact();
+                          setState(() => _saveToGoogleContacts = value);
+                        },
+                  title: const Text('Guardar en Contactos de Google'),
+                  subtitle: Text(
+                    _saveToGoogleContacts
+                        ? (activeAccount != null
+                              ? 'Se guardará en $activeAccount'
+                              : 'Se guardará en tu agenda de contactos')
+                        : 'Solo se guardará dentro de Nudge',
+                  ),
+                ),
+                if (_saveToGoogleContacts && googleAccounts.length > 1)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: DropdownButtonFormField<String>(
+                      initialValue: activeAccount,
+                      decoration: const InputDecoration(
+                        labelText: 'Cuenta de Google',
+                        prefixIcon: Icon(Icons.account_circle_outlined),
+                      ),
+                      items: googleAccounts
+                          .map(
+                            (String email) => DropdownMenuItem<String>(
+                              value: email,
+                              child: Text(
+                                email,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: _isSavingManual
+                          ? null
+                          : (String? value) {
+                              setState(() => _selectedGoogleAccount = value);
+                            },
+                    ),
+                  ),
+              ],
+            ),
+          ),
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: _submitManualContact,
-            icon: const Icon(Icons.check_rounded),
-            label: const Text('Usar este cliente'),
+            onPressed: _isSavingManual
+                ? null
+                : () => _submitManualContact(state),
+            icon: _isSavingManual
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.check_rounded),
+            label: Text(
+              _saveToGoogleContacts
+                  ? 'Guardar y usar $singularLower'
+                  : 'Usar este $singularLower',
+            ),
           ),
         ],
       ),
@@ -284,6 +444,7 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
     required ContactsState state,
     required List<ContactEntity> filtered,
     required ScrollController scrollController,
+    required String singularLower,
   }) {
     if (state.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -315,7 +476,7 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
                   const SizedBox(height: 8),
                   Text(
                     'Autoriza el acceso para priorizar tus contactos de Google '
-                    'y normalizar automáticamente sus números para WhatsApp.',
+                    'y preparar sus números automáticamente para WhatsApp.',
                     style: theme.textTheme.bodyMedium,
                     textAlign: TextAlign.center,
                   ),
@@ -344,7 +505,7 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
                   OutlinedButton.icon(
                     onPressed: () => setState(() => _manualMode = true),
                     icon: const Icon(Icons.person_add_alt_1_rounded),
-                    label: const Text('Ingresar cliente manualmente'),
+                    label: Text('Ingresar $singularLower manualmente'),
                   ),
                 ],
               ),
@@ -397,7 +558,7 @@ class _ContactPickerSheetState extends ConsumerState<ContactPickerSheet> {
               FilledButton.tonalIcon(
                 onPressed: () => setState(() => _manualMode = true),
                 icon: const Icon(Icons.person_add_alt_1_rounded),
-                label: const Text('Crear cliente manual'),
+                label: Text('Crear $singularLower manual'),
               ),
             ],
           ),

@@ -155,6 +155,16 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
+  Future<bool> switchAccount() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await _repository.clearAuthCache();
+    } catch (_) {
+      // Proceed to account picker even if disconnect reported no active grant.
+    }
+    return signIn();
+  }
+
   Future<void> signOut() async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {

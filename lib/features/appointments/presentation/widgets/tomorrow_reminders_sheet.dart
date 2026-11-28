@@ -1,7 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/theme/pixel_shapes.dart';
 import 'package:nudge/core/utils/date_formatters.dart';
 import 'package:nudge/core/utils/phone_sanitizer.dart';
@@ -11,7 +10,7 @@ import 'package:nudge/features/reminders/data/whatsapp_launcher_service.dart';
 import 'package:nudge/features/reminders/presentation/template_editor_sheet.dart';
 
 /// Expressive bottom sheet listing all appointments for tomorrow so the user
-/// can dispatch WhatsApp reminders one-by-one with a single tap.
+/// can dispatch WhatsApp confirmations one-by-one with a single tap.
 class TomorrowRemindersSheet extends ConsumerWidget {
   const TomorrowRemindersSheet({super.key});
 
@@ -29,7 +28,7 @@ class TomorrowRemindersSheet extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final tomorrowAsync = ref.watch(tomorrowAppointmentsProvider);
-    final templateBody = ref.watch(tomorrowTemplateBodyProvider);
+    final templateBody = ref.watch(responseTemplateBodyProvider);
     final tomorrowDate = DateFormatters.tomorrowRange().start;
 
     return DraggableScrollableSheet(
@@ -49,7 +48,7 @@ class TomorrowRemindersSheet extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Recordatorios de mañana',
+                          'Confirmaciones de mañana',
                           style: theme.textTheme.titleLarge,
                         ),
                         const SizedBox(height: 2),
@@ -61,13 +60,10 @@ class TomorrowRemindersSheet extends ConsumerWidget {
                     ),
                   ),
                   IconButton.filledTonal(
-                    tooltip: 'Editar plantilla',
+                    tooltip: 'Editar plantilla de respuesta',
                     onPressed: () {
                       HapticFeedback.lightImpact();
-                      TemplateEditorSheet.show(
-                        context,
-                        initialTemplateId: AppConstants.tomorrowTemplateId,
-                      );
+                      TemplateEditorSheet.show(context);
                     },
                     icon: const Icon(Icons.edit_note_rounded),
                   ),
@@ -104,7 +100,7 @@ class TomorrowRemindersSheet extends ConsumerWidget {
                                 const SizedBox(height: 6),
                                 Text(
                                   'Cuando agendes citas para mañana aparecerán '
-                                  'aquí listas para enviar su recordatorio.',
+                                  'aquí listas para enviar su confirmación.',
                                   style: theme.textTheme.bodyMedium,
                                   textAlign: TextAlign.center,
                                 ),
@@ -149,7 +145,7 @@ class TomorrowRemindersSheet extends ConsumerWidget {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    '$sentCount de $total recordatorios enviados',
+                                    '$sentCount de $total confirmaciones enviadas',
                                     style: theme.textTheme.titleSmall?.copyWith(
                                       color: colorScheme.onPrimaryContainer,
                                       fontWeight: FontWeight.w700,
@@ -173,7 +169,7 @@ class TomorrowRemindersSheet extends ConsumerWidget {
                       }
 
                       final appointment = appointments[index - 1];
-                      return _TomorrowReminderItem(
+                      return _TomorrowConfirmationItem(
                         appointment: appointment,
                         onSendTap: () async {
                           final launched = await ref
@@ -205,8 +201,8 @@ class TomorrowRemindersSheet extends ConsumerWidget {
   }
 }
 
-class _TomorrowReminderItem extends StatelessWidget {
-  const _TomorrowReminderItem({
+class _TomorrowConfirmationItem extends StatelessWidget {
+  const _TomorrowConfirmationItem({
     required this.appointment,
     required this.onSendTap,
   });

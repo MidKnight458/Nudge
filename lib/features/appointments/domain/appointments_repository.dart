@@ -66,6 +66,9 @@ abstract interface class AppointmentsRepository {
     DateTime endExclusive,
   );
 
+  Stream<({DateTime? date, List<AppointmentEntity> appointments})>
+  watchNextUpcomingDayAppointments(DateTime afterDay);
+
   Stream<int> watchPendingSyncCount();
 
   Future<DateTime?> getLastSyncTimestamp();

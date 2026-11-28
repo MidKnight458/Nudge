@@ -76,7 +76,7 @@ class AppointmentCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         if (appointment.syncStatus.isPending)
                           Tooltip(
-                            message: 'Pendiente de sincronizar con Calendar',
+                            message: 'Pendiente de sincronizar',
                             child: Icon(
                               Icons.cloud_upload_outlined,
                               size: 16,
@@ -104,7 +104,7 @@ class AppointmentCard extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'Recordado',
+                                  'Confirmado',
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: colorScheme.onTertiaryContainer,
                                     fontWeight: FontWeight.w700,
@@ -163,7 +163,7 @@ class AppointmentCard extends StatelessWidget {
               const SizedBox(width: 8),
               IconButton.filledTonal(
                 tooltip: hasPhone
-                    ? 'Enviar recordatorio por WhatsApp'
+                    ? 'Enviar confirmación por WhatsApp'
                     : 'Agrega un teléfono para enviar WhatsApp',
                 onPressed: hasPhone
                     ? () {

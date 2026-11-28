@@ -81,6 +81,7 @@ class LocalAppointmentsDatasource {
     required String rawPhone,
     required String phoneE164,
     String? googleContactId,
+    bool markAsSynced = false,
   }) async {
     final cleanContactId = googleContactId?.trim().isEmpty == true
         ? null
@@ -88,6 +89,7 @@ class LocalAppointmentsDatasource {
     final cleanName = name.trim();
     final cleanRawPhone = rawPhone.trim();
     final cleanE164 = phoneE164.trim();
+    final now = _truncateUtcSeconds(DateTime.now());
 
     Client? existing;
     if (cleanContactId != null) {
@@ -126,16 +128,32 @@ class LocalAppointmentsDatasource {
       final resolvedName = cleanName.isNotEmpty ? cleanName : existing.name;
       final resolvedContactId = cleanContactId ?? existing.googleContactId;
 
-      await (_db.update(
-        _db.clients,
-      )..where((c) => c.id.equals(existing!.id))).write(
-        ClientsCompanion(
-          googleContactId: Value(resolvedContactId),
-          name: Value(resolvedName),
-          rawPhone: Value(resolvedRawPhone),
-          phoneE164: Value(resolvedE164),
-        ),
-      );
+      final changed =
+          resolvedRawPhone != existing.rawPhone ||
+          resolvedE164 != existing.phoneE164 ||
+          resolvedName != existing.name ||
+          resolvedContactId != existing.googleContactId ||
+          existing.syncStatus == AppConstants.syncStatusPendingDelete;
+
+      if (changed) {
+        final nextStatus = markAsSynced
+            ? AppConstants.syncStatusSynced
+            : (existing.syncStatus == AppConstants.syncStatusPendingCreate
+                  ? AppConstants.syncStatusPendingCreate
+                  : AppConstants.syncStatusPendingUpdate);
+        await (_db.update(
+          _db.clients,
+        )..where((c) => c.id.equals(existing!.id))).write(
+          ClientsCompanion(
+            googleContactId: Value(resolvedContactId),
+            name: Value(resolvedName),
+            rawPhone: Value(resolvedRawPhone),
+            phoneE164: Value(resolvedE164),
+            syncStatus: Value(nextStatus),
+            lastModified: Value(now),
+          ),
+        );
+      }
       return existing.id;
     }
 
@@ -143,10 +161,19 @@ class LocalAppointmentsDatasource {
         .into(_db.clients)
         .insert(
           ClientsCompanion.insert(
+            syncId: cleanE164.isNotEmpty
+                ? 'phone-$cleanE164'
+                : generateAppointmentSyncId(),
             googleContactId: Value(cleanContactId),
-            name: cleanName,
+            name: cleanName.isNotEmpty ? cleanName : 'Cliente',
             rawPhone: cleanRawPhone,
             phoneE164: cleanE164,
+            syncStatus: Value(
+              markAsSynced
+                  ? AppConstants.syncStatusSynced
+                  : AppConstants.syncStatusPendingCreate,
+            ),
+            lastModified: now,
           ),
         );
   }
@@ -451,6 +478,7 @@ class LocalAppointmentsDatasource {
             rawPhone: doc.clientRawPhone,
             phoneE164: doc.clientPhoneE164,
             googleContactId: doc.clientGoogleContactId,
+            markAsSynced: true,
           );
 
           final cleanTitle = doc.title.trim();
@@ -492,6 +520,7 @@ class LocalAppointmentsDatasource {
             rawPhone: doc.clientRawPhone,
             phoneE164: doc.clientPhoneE164,
             googleContactId: doc.clientGoogleContactId,
+            markAsSynced: true,
           );
 
           await _db
@@ -697,5 +726,100 @@ class LocalAppointmentsDatasource {
       return null;
     }
     return trimmed;
+  }
+
+  /// Watches all appointments for the earliest future day strictly after [afterDay].
+  Stream<({DateTime? date, List<AppointmentEntity> appointments})>
+  watchNextUpcomingDayAppointments(DateTime afterDay) {
+    final localAfter = afterDay.toLocal();
+    final nextDayStart = DateTime(
+      localAfter.year,
+      localAfter.month,
+      localAfter.day + 1,
+    );
+    final query = _baseJoinedQuery()
+      ..where(
+        _db.appointments.syncStatus
+                .equals(AppConstants.syncStatusPendingDelete)
+                .not() &
+            _db.appointments.startTime.isBiggerOrEqualValue(nextDayStart),
+      )
+      ..orderBy([
+        OrderingTerm.asc(_db.appointments.startTime),
+        OrderingTerm.asc(_db.appointments.id),
+      ]);
+
+    return query.watch().map((List<TypedResult> rows) {
+      if (rows.isEmpty) {
+        return (date: null, appointments: const <AppointmentEntity>[]);
+      }
+      final items = rows.map(_mapJoinedRow).toList(growable: false);
+      final firstLocal = items.first.startTime.toLocal();
+      final targetDate = DateTime(
+        firstLocal.year,
+        firstLocal.month,
+        firstLocal.day,
+      );
+      final matching = items
+          .where((AppointmentEntity appt) {
+            final dt = appt.startTime.toLocal();
+            return dt.year == targetDate.year &&
+                dt.month == targetDate.month &&
+                dt.day == targetDate.day;
+          })
+          .toList(growable: false);
+      return (date: targetDate, appointments: matching);
+    });
+  }
+
+  Future<String?> getLastAccountUid() async {
+    final metadata = await getSyncMetadata();
+    return metadata.lastAccountUid;
+  }
+
+  Future<void> setLastAccountUid(String? uid) async {
+    await getSyncMetadata();
+    await (_db.update(_db.syncMetadata)..where((m) => m.id.equals(1))).write(
+      SyncMetadataCompanion(lastAccountUid: Value(uid)),
+    );
+  }
+
+  /// Clears user-scoped SQLite tables when switching to a different Google UID.
+  Future<void> clearAllLocalUserData() async {
+    final epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+    await _db.transaction(() async {
+      await _db.delete(_db.clientAttachments).go();
+      await _db.delete(_db.appointments).go();
+      await _db.delete(_db.clients).go();
+      await _db.delete(_db.appSettings).go();
+      await _db.delete(_db.reminderTemplates).go();
+      await _db
+          .into(_db.syncMetadata)
+          .insertOnConflictUpdate(
+            const SyncMetadataCompanion(
+              id: Value(1),
+              syncToken: Value(null),
+              lastSyncTimestamp: Value(null),
+              lastAccountUid: Value(null),
+            ),
+          );
+      await _db
+          .into(_db.appSettings)
+          .insert(
+            AppSettingsCompanion.insert(updatedAt: epoch),
+            mode: InsertMode.insertOrIgnore,
+          );
+      await _db
+          .into(_db.reminderTemplates)
+          .insert(
+            ReminderTemplatesCompanion.insert(
+              id: AppConstants.tomorrowTemplateId,
+              name: AppConstants.tomorrowTemplateName,
+              body: AppConstants.defaultTomorrowReminderBody,
+              updatedAt: epoch,
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
+    });
   }
 }

@@ -69,6 +69,11 @@ class _FakeAuthRepository implements AuthRepository {
   @override
   Future<AuthenticatedCalendarClient?> openCalendarClient() async => null;
 
+  @override
+  Future<AuthenticatedDriveClient?> openDriveClient({
+    bool requestScopeIfNeeded = false,
+  }) async => null;
+
   void setUser(AuthUser? user) {
     _currentUser = user;
     _controller.add(user);
@@ -164,12 +169,26 @@ class _InMemoryFirestoreSyncDatasource implements FirestoreSyncDatasource {
       <String, Map<String, CloudAppointmentDocument>>{};
   final Map<String, Map<String, CloudTemplateDocument>> _templatesByUid =
       <String, Map<String, CloudTemplateDocument>>{};
+  final Map<String, Map<String, CloudClientDocument>> _clientsByUid =
+      <String, Map<String, CloudClientDocument>>{};
+  final Map<String, Map<String, CloudAttachmentDocument>> _attachmentsByUid =
+      <String, Map<String, CloudAttachmentDocument>>{};
+  final Map<String, CloudSettingsDocument> _settingsByUid =
+      <String, CloudSettingsDocument>{};
+
   final Map<String, StreamController<List<CloudAppointmentDocument>>>
   _appointmentControllers =
       <String, StreamController<List<CloudAppointmentDocument>>>{};
   final Map<String, StreamController<List<CloudTemplateDocument>>>
   _templateControllers =
       <String, StreamController<List<CloudTemplateDocument>>>{};
+  final Map<String, StreamController<List<CloudClientDocument>>>
+  _clientControllers = <String, StreamController<List<CloudClientDocument>>>{};
+  final Map<String, StreamController<List<CloudAttachmentDocument>>>
+  _attachmentControllers =
+      <String, StreamController<List<CloudAttachmentDocument>>>{};
+  final Map<String, StreamController<CloudSettingsDocument?>>
+  _settingsControllers = <String, StreamController<CloudSettingsDocument?>>{};
 
   int upsertAppointmentCount = 0;
   int markDeletedCount = 0;
@@ -182,6 +201,15 @@ class _InMemoryFirestoreSyncDatasource implements FirestoreSyncDatasource {
 
   Map<String, CloudTemplateDocument> _userTemplates(String uid) =>
       _templatesByUid.putIfAbsent(uid, () => <String, CloudTemplateDocument>{});
+
+  Map<String, CloudClientDocument> _userClients(String uid) =>
+      _clientsByUid.putIfAbsent(uid, () => <String, CloudClientDocument>{});
+
+  Map<String, CloudAttachmentDocument> _userAttachments(String uid) =>
+      _attachmentsByUid.putIfAbsent(
+        uid,
+        () => <String, CloudAttachmentDocument>{},
+      );
 
   StreamController<List<CloudAppointmentDocument>> _appointmentController(
     String uid,
@@ -198,6 +226,29 @@ class _InMemoryFirestoreSyncDatasource implements FirestoreSyncDatasource {
     return _templateControllers.putIfAbsent(
       uid,
       () => StreamController<List<CloudTemplateDocument>>.broadcast(),
+    );
+  }
+
+  StreamController<List<CloudClientDocument>> _clientController(String uid) {
+    return _clientControllers.putIfAbsent(
+      uid,
+      () => StreamController<List<CloudClientDocument>>.broadcast(),
+    );
+  }
+
+  StreamController<List<CloudAttachmentDocument>> _attachmentController(
+    String uid,
+  ) {
+    return _attachmentControllers.putIfAbsent(
+      uid,
+      () => StreamController<List<CloudAttachmentDocument>>.broadcast(),
+    );
+  }
+
+  StreamController<CloudSettingsDocument?> _settingsController(String uid) {
+    return _settingsControllers.putIfAbsent(
+      uid,
+      () => StreamController<CloudSettingsDocument?>.broadcast(),
     );
   }
 
@@ -277,11 +328,116 @@ class _InMemoryFirestoreSyncDatasource implements FirestoreSyncDatasource {
     _templateController(userId).add(store.values.toList(growable: false));
   }
 
+  @override
+  Stream<List<CloudClientDocument>> watchClients(String userId) =>
+      _clientController(userId).stream;
+
+  @override
+  Future<List<CloudClientDocument>> fetchClients(String userId) async =>
+      _userClients(userId).values.toList(growable: false);
+
+  @override
+  Future<void> upsertClient(String userId, CloudClientDocument document) async {
+    final store = _userClients(userId);
+    store[document.syncId] = document;
+    _clientController(userId).add(store.values.toList(growable: false));
+  }
+
+  @override
+  Future<void> markClientDeleted(
+    String userId, {
+    required String syncId,
+    required DateTime deletedAt,
+  }) async {
+    final store = _userClients(userId);
+    final prev = store[syncId];
+    store[syncId] = CloudClientDocument(
+      syncId: syncId,
+      googleContactId: prev?.googleContactId,
+      name: prev?.name ?? '',
+      rawPhone: prev?.rawPhone ?? '',
+      phoneE164: prev?.phoneE164 ?? '',
+      generalNotes: prev?.generalNotes,
+      deleted: true,
+      lastModified: deletedAt.toUtc(),
+    );
+    _clientController(userId).add(store.values.toList(growable: false));
+  }
+
+  @override
+  Stream<List<CloudAttachmentDocument>> watchClientAttachments(String userId) =>
+      _attachmentController(userId).stream;
+
+  @override
+  Future<List<CloudAttachmentDocument>> fetchClientAttachments(
+    String userId,
+  ) async => _userAttachments(userId).values.toList(growable: false);
+
+  @override
+  Future<void> upsertClientAttachment(
+    String userId,
+    CloudAttachmentDocument document,
+  ) async {
+    final store = _userAttachments(userId);
+    store[document.syncId] = document;
+    _attachmentController(userId).add(store.values.toList(growable: false));
+  }
+
+  @override
+  Future<void> markClientAttachmentDeleted(
+    String userId, {
+    required String syncId,
+    required DateTime deletedAt,
+  }) async {
+    final store = _userAttachments(userId);
+    final prev = store[syncId];
+    store[syncId] = CloudAttachmentDocument(
+      syncId: syncId,
+      clientSyncId: prev?.clientSyncId ?? '',
+      fileName: prev?.fileName ?? '',
+      mimeType: prev?.mimeType ?? 'application/octet-stream',
+      sizeBytes: prev?.sizeBytes ?? 0,
+      driveFileId: prev?.driveFileId,
+      deleted: true,
+      createdAt:
+          prev?.createdAt ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      lastModified: deletedAt.toUtc(),
+    );
+    _attachmentController(userId).add(store.values.toList(growable: false));
+  }
+
+  @override
+  Stream<CloudSettingsDocument?> watchSettings(String userId) =>
+      _settingsController(userId).stream;
+
+  @override
+  Future<CloudSettingsDocument?> fetchSettings(String userId) async =>
+      _settingsByUid[userId];
+
+  @override
+  Future<void> upsertSettings(
+    String userId,
+    CloudSettingsDocument document,
+  ) async {
+    _settingsByUid[userId] = document;
+    _settingsController(userId).add(document);
+  }
+
   Future<void> dispose() async {
     for (final controller in _appointmentControllers.values) {
       await controller.close();
     }
     for (final controller in _templateControllers.values) {
+      await controller.close();
+    }
+    for (final controller in _clientControllers.values) {
+      await controller.close();
+    }
+    for (final controller in _attachmentControllers.values) {
+      await controller.close();
+    }
+    for (final controller in _settingsControllers.values) {
       await controller.close();
     }
   }
@@ -668,5 +824,132 @@ void main() {
         await dbB.close();
       }
     });
+
+    test(
+      'watches nearest future day appointments for free-day Próximas Citas',
+      () async {
+        await repoA.createAppointment(
+          AppointmentInput(
+            clientName: 'Marcos Díaz',
+            clientRawPhone: '5511112222',
+            clientPhoneE164: '5215511112222',
+            title: 'Revisión posterior',
+            startTime: DateTime(2026, 12, 6, 11, 0),
+            endTime: DateTime(2026, 12, 6, 12, 0),
+          ),
+        );
+        await repoA.createAppointment(
+          AppointmentInput(
+            clientName: 'Elena Ruiz',
+            clientRawPhone: '5533334444',
+            clientPhoneE164: '5215533334444',
+            title: 'Sesión próxima',
+            startTime: DateTime(2026, 12, 3, 16, 30),
+            endTime: DateTime(2026, 12, 3, 17, 0),
+          ),
+        );
+
+        final upcoming = await localA
+            .watchNextUpcomingDayAppointments(DateTime(2026, 12, 1))
+            .first;
+        expect(upcoming.date, DateTime(2026, 12, 3));
+        expect(upcoming.appointments, hasLength(1));
+        expect(upcoming.appointments.single.clientName, 'Elena Ruiz');
+      },
+    );
+
+    test(
+      'migrates Drift v2 database to v3 backfilling clients.syncId cleanly',
+      () async {
+        final v2MigratedDb = AppDatabase(
+          NativeDatabase.memory(
+            setup: (rawDb) {
+              rawDb.execute('''
+              CREATE TABLE clients (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                google_contact_id TEXT UNIQUE,
+                name TEXT NOT NULL,
+                raw_phone TEXT NOT NULL,
+                phone_e164 TEXT NOT NULL
+              );
+              CREATE TABLE appointments (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                sync_id TEXT NOT NULL UNIQUE,
+                google_calendar_event_id TEXT UNIQUE,
+                client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+                title TEXT NOT NULL,
+                notes TEXT,
+                start_time INTEGER NOT NULL,
+                end_time INTEGER NOT NULL,
+                reminder_sent INTEGER NOT NULL DEFAULT 0,
+                sync_status TEXT NOT NULL DEFAULT 'synced',
+                last_modified INTEGER NOT NULL
+              );
+              CREATE TABLE sync_metadata (
+                id INTEGER NOT NULL PRIMARY KEY,
+                sync_token TEXT,
+                last_sync_timestamp INTEGER
+              );
+              CREATE TABLE reminder_templates (
+                id TEXT NOT NULL PRIMARY KEY,
+                name TEXT NOT NULL,
+                body TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+              );
+              INSERT INTO clients (id, name, raw_phone, phone_e164)
+              VALUES (1, 'Cliente v2', '5511223344', '5215511223344');
+              INSERT INTO reminder_templates (id, name, body, updated_at)
+              VALUES ('tomorrow_reminder', 'Recordatorio de mañana', 'Hola', 100),
+                     ('confirmation', 'Confirmación de cita', 'Confirmado', 100);
+              PRAGMA user_version = 2;
+            ''');
+            },
+          ),
+        );
+
+        try {
+          final clients = await v2MigratedDb.select(v2MigratedDb.clients).get();
+          expect(clients, hasLength(1));
+          expect(clients.single.syncId, 'phone-5215511223344');
+
+          final templates = await v2MigratedDb
+              .select(v2MigratedDb.reminderTemplates)
+              .get();
+          expect(templates, hasLength(1));
+          expect(templates.single.id, AppConstants.tomorrowTemplateId);
+          expect(templates.single.name, AppConstants.tomorrowTemplateName);
+
+          final settingsRows = await v2MigratedDb
+              .select(v2MigratedDb.appSettings)
+              .get();
+          expect(settingsRows, hasLength(1));
+        } finally {
+          await v2MigratedDb.close();
+        }
+      },
+    );
+
+    test(
+      'clearAllLocalUserData resets user-scoped SQLite tables cleanly',
+      () async {
+        await repoA.createAppointment(
+          AppointmentInput(
+            clientName: 'Cuenta Uno',
+            clientRawPhone: '5511223344',
+            clientPhoneE164: '5215511223344',
+            title: 'Cita privada',
+            startTime: DateTime(2026, 12, 2, 10, 0),
+            endTime: DateTime(2026, 12, 2, 11, 0),
+          ),
+        );
+        await localA.setLastAccountUid(testUser.id);
+        expect(await localA.getAllActiveAppointments(), hasLength(1));
+
+        await localA.clearAllLocalUserData();
+        expect(await localA.getAllActiveAppointments(), isEmpty);
+        expect(await dbA.select(dbA.clients).get(), isEmpty);
+        expect(await localA.getLastAccountUid(), isNull);
+      },
+    );
   });
 }

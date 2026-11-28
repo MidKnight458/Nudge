@@ -11,6 +11,9 @@ import 'package:nudge/features/appointments/presentation/controllers/appointment
 import 'package:nudge/features/contacts/domain/entities/contact_entity.dart';
 import 'package:nudge/features/contacts/presentation/widgets/contact_picker_sheet.dart';
 import 'package:nudge/features/reminders/data/whatsapp_launcher_service.dart';
+import 'package:nudge/features/settings/data/settings_repository.dart';
+import 'package:nudge/features/settings/domain/app_preferences.dart';
+import 'package:nudge/features/settings/presentation/screens/settings_screen.dart';
 
 /// Expressive modal bottom sheet for creating, editing, and deleting appointments.
 class AppointmentFormSheet extends ConsumerStatefulWidget {
@@ -18,22 +21,28 @@ class AppointmentFormSheet extends ConsumerStatefulWidget {
     super.key,
     required this.initialDate,
     this.existing,
+    this.initialContact,
   });
 
   final DateTime initialDate;
   final AppointmentEntity? existing;
+  final ContactEntity? initialContact;
 
   static Future<void> show(
     BuildContext context, {
     required DateTime initialDate,
     AppointmentEntity? existing,
+    ContactEntity? initialContact,
   }) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) =>
-          AppointmentFormSheet(initialDate: initialDate, existing: existing),
+      builder: (_) => AppointmentFormSheet(
+        initialDate: initialDate,
+        existing: existing,
+        initialContact: initialContact,
+      ),
     );
   }
 
@@ -51,6 +60,9 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
   late TimeOfDay _startTime;
   late TimeOfDay _endTime;
   ContactEntity? _selectedContact;
+  int _activeDurationMinutes = AppConstants.defaultSlotDurationMinutes;
+  bool _timeTouched = false;
+  bool _customTimeMode = false;
   bool _isSubmitting = false;
 
   bool get _isEditing => widget.existing != null;
@@ -68,6 +80,10 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
       _selectedDate = DateFormatters.startOfDay(startLocal);
       _startTime = TimeOfDay(hour: startLocal.hour, minute: startLocal.minute);
       _endTime = TimeOfDay(hour: endLocal.hour, minute: endLocal.minute);
+      final diffMins = endLocal.difference(startLocal).inMinutes;
+      _activeDurationMinutes = diffMins > 0
+          ? diffMins
+          : AppConstants.defaultSlotDurationMinutes;
       _selectedContact = ContactEntity(
         id: existing.clientGoogleContactId,
         displayName: existing.clientName,
@@ -75,6 +91,7 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
         phoneE164: existing.clientPhoneE164,
         isGoogleAccount: existing.clientGoogleContactId != null,
       );
+      _timeTouched = true;
     } else {
       final now = DateTime.now();
       final base = DateFormatters.startOfDay(widget.initialDate);
@@ -84,6 +101,7 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
       _selectedDate = base;
       _startTime = TimeOfDay(hour: defaultHour, minute: 0);
       _endTime = TimeOfDay(hour: (defaultHour + 1).clamp(1, 23), minute: 0);
+      _selectedContact = widget.initialContact;
     }
   }
 
@@ -96,6 +114,28 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
 
   DateTime _combine(DateTime day, TimeOfDay time) {
     return DateTime(day.year, day.month, day.day, time.hour, time.minute);
+  }
+
+  int _toMinutesOfDay(TimeOfDay time) => time.hour * 60 + time.minute;
+
+  TimeOfDay _fromMinutesOfDay(int minutes) {
+    final clamped = minutes.clamp(0, 23 * 60 + 59);
+    return TimeOfDay(hour: clamped ~/ 60, minute: clamped % 60);
+  }
+
+  void _applyStartAndDuration(int startMinutes, int durationMinutes) {
+    final start = _fromMinutesOfDay(startMinutes);
+    final endMinutes = (startMinutes + durationMinutes).clamp(
+      startMinutes + 5,
+      23 * 60 + 59,
+    );
+    setState(() {
+      _startTime = start;
+      _endTime = _fromMinutesOfDay(endMinutes);
+      _activeDurationMinutes = durationMinutes;
+      _timeTouched = true;
+      _customTimeMode = false;
+    });
   }
 
   Future<void> _pickContact() async {
@@ -115,7 +155,10 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
       lastDate: DateTime(_selectedDate.year + 3),
     );
     if (picked != null && mounted) {
-      setState(() => _selectedDate = DateFormatters.startOfDay(picked));
+      setState(() {
+        _selectedDate = DateFormatters.startOfDay(picked);
+        _timeTouched = false;
+      });
     }
   }
 
@@ -131,7 +174,7 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
         final previousEnd = _combine(_selectedDate, _endTime);
         final duration = previousEnd.isAfter(previousStart)
             ? previousEnd.difference(previousStart)
-            : AppConstants.defaultAppointmentDuration;
+            : Duration(minutes: _activeDurationMinutes);
 
         _startTime = picked;
         final newStart = _combine(_selectedDate, picked);
@@ -140,6 +183,7 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
           hour: adjustedEnd.hour,
           minute: adjustedEnd.minute,
         );
+        _timeTouched = true;
       });
     }
   }
@@ -151,15 +195,20 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
       initialTime: _endTime,
     );
     if (picked != null && mounted) {
-      setState(() => _endTime = picked);
+      setState(() {
+        _endTime = picked;
+        _timeTouched = true;
+      });
     }
   }
 
-  Future<void> _save() async {
+  Future<void> _save(String singularLower) async {
     if (_selectedContact == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Selecciona un cliente antes de guardar la cita.'),
+        SnackBar(
+          content: Text(
+            'Selecciona un $singularLower antes de guardar la cita.',
+          ),
         ),
       );
       return;
@@ -274,14 +323,10 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
     }
 
     HapticFeedback.lightImpact();
-    final template = ref.read(confirmationTemplateBodyProvider);
+    final template = ref.read(responseTemplateBodyProvider);
     final launched = await ref
         .read(appointmentsControllerProvider.notifier)
-        .sendWhatsAppReminder(
-          appointment: existing,
-          templateBody: template,
-          markSent: false,
-        );
+        .sendWhatsAppReminder(appointment: existing, templateBody: template);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -296,8 +341,54 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final viewInsets = MediaQuery.viewInsetsOf(context);
+
+    final prefs =
+        ref.watch(appPreferencesProvider).valueOrNull ??
+        AppPreferencesEntity(
+          updatedAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        );
+    final singularLower = prefs.clientLabelSingular.toLowerCase();
+
+    final dayAppointments =
+        ref.watch(appointmentsForDateProvider(_selectedDate)).valueOrNull ??
+        const <AppointmentEntity>[];
+
+    final matchedService = prefs.services
+        .where(
+          (CustomServiceItem s) =>
+              s.name.trim().toLowerCase() ==
+              _titleController.text.trim().toLowerCase(),
+        )
+        .firstOrNull;
+
+    final effectiveDuration = _isEditing
+        ? _activeDurationMinutes
+        : (matchedService?.durationMinutes ??
+              prefs.schedule.defaultSlotDurationMinutes);
+
+    final availableSlots = prefs.schedule.availableSlotsForDay(
+      day: _selectedDate,
+      dayAppointments: dayAppointments,
+      durationMinutes: effectiveDuration,
+      excludeAppointmentId: widget.existing?.id,
+    );
+
+    if (!_isEditing &&
+        !_timeTouched &&
+        !_customTimeMode &&
+        availableSlots.isNotEmpty) {
+      final firstSlot = availableSlots.first;
+      if (_toMinutesOfDay(_startTime) != firstSlot) {
+        _startTime = _fromMinutesOfDay(firstSlot);
+        _endTime = _fromMinutesOfDay(firstSlot + effectiveDuration);
+      }
+    }
+
     final startDateTime = _combine(_selectedDate, _startTime);
     final endDateTime = _combine(_selectedDate, _endTime);
+    final selectedStartMinutes = _toMinutesOfDay(_startTime);
+    final occupiedSlotsCount =
+        prefs.schedule.slotMinutesFromMidnight.length - availableSlots.length;
 
     return Padding(
       padding: EdgeInsets.only(bottom: viewInsets.bottom),
@@ -347,12 +438,13 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
                     ),
                   ),
                   title: Text(
-                    _selectedContact?.displayName ?? 'Seleccionar cliente',
+                    _selectedContact?.displayName ??
+                        'Seleccionar $singularLower',
                     style: theme.textTheme.titleMedium,
                   ),
                   subtitle: Text(
                     _selectedContact == null
-                        ? 'Prioriza tus contactos de Google o crea uno manual'
+                        ? 'Elige un contacto de Google o crea uno manual'
                         : (_selectedContact!.phoneE164.isEmpty
                               ? 'Sin teléfono WhatsApp (toca para agregar)'
                               : PhoneSanitizer.formatForDisplay(
@@ -365,9 +457,80 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
                 ),
               ),
               const SizedBox(height: 14),
+              if (prefs.services.isNotEmpty) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Servicios o motivos',
+                        style: theme.textTheme.labelLarge,
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        SettingsScreen.push(
+                          context,
+                          initialSection: SettingsSection.services,
+                        );
+                      },
+                      icon: const Icon(Icons.tune_rounded, size: 16),
+                      label: const Text('Editar'),
+                    ),
+                  ],
+                ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: prefs.services
+                      .map((CustomServiceItem service) {
+                        final selected =
+                            _titleController.text.trim().toLowerCase() ==
+                            service.name.trim().toLowerCase();
+                        return ChoiceChip(
+                          label: Text(
+                            '${service.name} (${service.durationMinutes}m)',
+                          ),
+                          selected: selected,
+                          onSelected: (_) {
+                            HapticFeedback.lightImpact();
+                            setState(() {
+                              _titleController.text = service.name;
+                              _activeDurationMinutes = service.durationMinutes;
+                              final currentStartMin = _toMinutesOfDay(
+                                _startTime,
+                              );
+                              _endTime = _fromMinutesOfDay(
+                                currentStartMin + service.durationMinutes,
+                              );
+                            });
+                          },
+                        );
+                      })
+                      .toList(growable: false),
+                ),
+                const SizedBox(height: 10),
+              ] else ...[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.tonalIcon(
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      SettingsScreen.push(
+                        context,
+                        initialSection: SettingsSection.services,
+                      );
+                    },
+                    icon: const Icon(Icons.tune_rounded, size: 18),
+                    label: const Text('Personalizar servicios o motivos'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
               TextFormField(
                 controller: _titleController,
                 textCapitalization: TextCapitalization.sentences,
+                onChanged: (_) => setState(() {}),
                 decoration: const InputDecoration(
                   labelText: 'Servicio o motivo de la cita',
                   hintText: 'Ej. Corte, consulta, sesión...',
@@ -381,31 +544,139 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
                 },
               ),
               const SizedBox(height: 14),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
+              Row(
                 children: [
                   ActionChip(
                     avatar: const Icon(Icons.calendar_today_rounded, size: 17),
                     label: Text(DateFormatters.formatShortDate(_selectedDate)),
                     onPressed: _isSubmitting ? null : _pickDate,
                   ),
-                  ActionChip(
-                    avatar: const Icon(Icons.schedule_rounded, size: 17),
-                    label: Text(
-                      'Inicio: ${DateFormatters.formatTime(startDateTime)}',
+                  const Spacer(),
+                  if (prefs.schedule.hasConfiguredSlots)
+                    FilterChip(
+                      avatar: const Icon(
+                        Icons.edit_calendar_outlined,
+                        size: 16,
+                      ),
+                      label: const Text('Horario personalizado'),
+                      selected: _customTimeMode,
+                      onSelected: (bool selected) {
+                        HapticFeedback.lightImpact();
+                        setState(() => _customTimeMode = selected);
+                      },
+                    )
+                  else
+                    TextButton.icon(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        SettingsScreen.push(
+                          context,
+                          initialSection: SettingsSection.schedule,
+                        );
+                      },
+                      icon: const Icon(Icons.schedule_rounded, size: 16),
+                      label: const Text('Configurar horarios'),
                     ),
-                    onPressed: _isSubmitting ? null : _pickStartTime,
-                  ),
-                  ActionChip(
-                    avatar: const Icon(Icons.timelapse_rounded, size: 17),
-                    label: Text(
-                      'Fin: ${DateFormatters.formatTime(endDateTime)}',
-                    ),
-                    onPressed: _isSubmitting ? null : _pickEndTime,
-                  ),
                 ],
               ),
+              const SizedBox(height: 10),
+              if (prefs.schedule.hasConfiguredSlots && !_customTimeMode) ...[
+                Row(
+                  children: [
+                    Text(
+                      'Horarios disponibles',
+                      style: theme.textTheme.labelLarge,
+                    ),
+                    if (occupiedSlotsCount > 0) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '($occupiedSlotsCount ocupados)',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (availableSlots.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.55,
+                      ),
+                      borderRadius: PixelShapes.inputBorderRadius,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Todos los horarios configurados ya están ocupados este día.',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 6),
+                        TextButton.icon(
+                          onPressed: () =>
+                              setState(() => _customTimeMode = true),
+                          icon: const Icon(Icons.access_time_rounded, size: 16),
+                          label: const Text('Elegir horario personalizado'),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: availableSlots
+                        .map((int slotMinutes) {
+                          final selected = selectedStartMinutes == slotMinutes;
+                          return ChoiceChip(
+                            label: Text(
+                              ScheduleConfig.formatMinutesOfDay(slotMinutes),
+                            ),
+                            selected: selected,
+                            onSelected: (_) {
+                              HapticFeedback.lightImpact();
+                              _applyStartAndDuration(
+                                slotMinutes,
+                                effectiveDuration,
+                              );
+                            },
+                          );
+                        })
+                        .toList(growable: false),
+                  ),
+                const SizedBox(height: 6),
+                Text(
+                  'Horario seleccionado: '
+                  '${DateFormatters.formatTimeRange(startDateTime, endDateTime)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ] else
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    ActionChip(
+                      avatar: const Icon(Icons.schedule_rounded, size: 17),
+                      label: Text(
+                        'Inicio: ${DateFormatters.formatTime(startDateTime)}',
+                      ),
+                      onPressed: _isSubmitting ? null : _pickStartTime,
+                    ),
+                    ActionChip(
+                      avatar: const Icon(Icons.timelapse_rounded, size: 17),
+                      label: Text(
+                        'Fin: ${DateFormatters.formatTime(endDateTime)}',
+                      ),
+                      onPressed: _isSubmitting ? null : _pickEndTime,
+                    ),
+                  ],
+                ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: _notesController,
@@ -413,7 +684,7 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
                 minLines: 2,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(
-                  labelText: 'Notas (opcional)',
+                  labelText: 'Notas de la cita (opcional)',
                   alignLabelWithHint: true,
                   prefixIcon: Icon(Icons.notes_rounded),
                 ),
@@ -428,7 +699,7 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
               ],
               const SizedBox(height: 18),
               FilledButton.icon(
-                onPressed: _isSubmitting ? null : _save,
+                onPressed: _isSubmitting ? null : () => _save(singularLower),
                 icon: _isSubmitting
                     ? const SizedBox(
                         width: 18,

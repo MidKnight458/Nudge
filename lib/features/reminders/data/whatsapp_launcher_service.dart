@@ -270,7 +270,7 @@ final reminderTemplatesProvider = StreamProvider<List<ReminderTemplateEntity>>((
   return ref.watch(reminderTemplatesRepositoryProvider).watchTemplates();
 });
 
-final tomorrowTemplateBodyProvider = Provider<String>((Ref ref) {
+final responseTemplateBodyProvider = Provider<String>((Ref ref) {
   final templates = ref.watch(reminderTemplatesProvider).valueOrNull;
   if (templates == null) {
     return AppConstants.defaultTomorrowReminderBody;
@@ -282,16 +282,12 @@ final tomorrowTemplateBodyProvider = Provider<String>((Ref ref) {
       AppConstants.defaultTomorrowReminderBody;
 });
 
+final tomorrowTemplateBodyProvider = Provider<String>((Ref ref) {
+  return ref.watch(responseTemplateBodyProvider);
+});
+
 final confirmationTemplateBodyProvider = Provider<String>((Ref ref) {
-  final templates = ref.watch(reminderTemplatesProvider).valueOrNull;
-  if (templates == null) {
-    return AppConstants.defaultConfirmationBody;
-  }
-  return templates
-          .where((t) => t.id == AppConstants.confirmationTemplateId)
-          .firstOrNull
-          ?.body ??
-      AppConstants.defaultConfirmationBody;
+  return ref.watch(responseTemplateBodyProvider);
 });
 
 final whatsappLauncherServiceProvider = Provider<WhatsAppLauncherService>((

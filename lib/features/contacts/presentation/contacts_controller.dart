@@ -13,6 +13,7 @@ class ContactsState {
   const ContactsState({
     this.permissionState = ContactsPermissionState.denied,
     this.allContacts = const <ContactEntity>[],
+    this.deviceGoogleAccounts = const <String>[],
     this.searchQuery = '',
     this.isLoading = false,
     this.errorMessage,
@@ -20,6 +21,7 @@ class ContactsState {
 
   final ContactsPermissionState permissionState;
   final List<ContactEntity> allContacts;
+  final List<String> deviceGoogleAccounts;
   final String searchQuery;
   final bool isLoading;
   final String? errorMessage;
@@ -46,6 +48,7 @@ class ContactsState {
   ContactsState copyWith({
     ContactsPermissionState? permissionState,
     List<ContactEntity>? allContacts,
+    List<String>? deviceGoogleAccounts,
     String? searchQuery,
     bool? isLoading,
     String? errorMessage,
@@ -54,6 +57,7 @@ class ContactsState {
     return ContactsState(
       permissionState: permissionState ?? this.permissionState,
       allContacts: allContacts ?? this.allContacts,
+      deviceGoogleAccounts: deviceGoogleAccounts ?? this.deviceGoogleAccounts,
       searchQuery: searchQuery ?? this.searchQuery,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
@@ -61,7 +65,7 @@ class ContactsState {
   }
 }
 
-/// Manages contact permissions, loading, and search filtering.
+/// Manages contact permissions, loading, Google account discovery, and search.
 class ContactsController extends AutoDisposeNotifier<ContactsState> {
   @override
   ContactsState build() {
@@ -88,12 +92,23 @@ class ContactsController extends AutoDisposeNotifier<ContactsState> {
       }
 
       final contacts = await _repository.getContacts();
+      final accounts =
+          contacts
+              .where(
+                (ContactEntity c) => c.isGoogleAccount && c.accountName != null,
+              )
+              .map((ContactEntity c) => c.accountName!)
+              .toSet()
+              .toList(growable: false)
+            ..sort();
+
       state = state.copyWith(
         permissionState: ContactsPermissionState.granted,
         allContacts: contacts,
+        deviceGoogleAccounts: accounts,
         isLoading: false,
       );
-    } catch (error) {
+    } catch (_) {
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'No se pudieron leer los contactos del dispositivo.',
@@ -109,6 +124,41 @@ class ContactsController extends AutoDisposeNotifier<ContactsState> {
     } else {
       state = state.copyWith(permissionState: permission, isLoading: false);
     }
+  }
+
+  Future<ContactEntity> saveManualContactToGoogle({
+    required String displayName,
+    required String rawPhone,
+    required String phoneE164,
+    String? googleAccountName,
+  }) async {
+    final created = await _repository.saveContactToDevice(
+      displayName: displayName,
+      rawPhone: rawPhone,
+      phoneE164: phoneE164,
+      googleAccountName: googleAccountName,
+    );
+
+    final updated = ContactEntity.sortPrioritizingGoogle(<ContactEntity>[
+      created,
+      ...state.allContacts.where(
+        (ContactEntity c) =>
+            c.phoneE164 != created.phoneE164 ||
+            c.displayName != created.displayName,
+      ),
+    ]);
+    final accounts = <String>{
+      ...state.deviceGoogleAccounts,
+      if (created.accountName != null && created.accountName!.isNotEmpty)
+        created.accountName!,
+    }.toList(growable: false)..sort();
+
+    state = state.copyWith(
+      permissionState: ContactsPermissionState.granted,
+      allContacts: updated,
+      deviceGoogleAccounts: accounts,
+    );
+    return created;
   }
 
   void setSearchQuery(String query) {

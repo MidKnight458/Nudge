@@ -4,7 +4,6 @@ import 'package:animations/animations.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:nudge/core/constants/app_constants.dart';
 import 'package:nudge/core/theme/pixel_shapes.dart';
 import 'package:nudge/core/utils/date_formatters.dart';
 import 'package:nudge/features/appointments/domain/appointments_repository.dart';
@@ -15,6 +14,7 @@ import 'package:nudge/features/appointments/presentation/screens/appointment_for
 import 'package:nudge/features/appointments/presentation/widgets/appointment_card.dart';
 import 'package:nudge/features/appointments/presentation/widgets/date_selector_strip.dart';
 import 'package:nudge/features/appointments/presentation/widgets/tomorrow_reminders_sheet.dart';
+import 'package:nudge/features/auth/domain/auth_repository.dart';
 import 'package:nudge/features/auth/presentation/auth_controller.dart';
 import 'package:nudge/features/reminders/data/whatsapp_launcher_service.dart';
 import 'package:nudge/features/reminders/presentation/template_editor_sheet.dart';
@@ -78,6 +78,9 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
 
     final authState = ref.watch(authControllerProvider);
     final syncState = ref.watch(syncControllerProvider);
+    final upcomingDay =
+        ref.watch(nextUpcomingDayProvider).valueOrNull ??
+        (date: null, appointments: const <AppointmentEntity>[]);
 
     final tomorrowList =
         tomorrowAppointmentsAsync.valueOrNull ?? const <AppointmentEntity>[];
@@ -88,23 +91,16 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(AppConstants.appName),
-            Text(
-              _buildSyncSubtitle(authState, syncState, pendingSyncCount),
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: syncState.lastError != null && authState.isSignedIn
-                    ? colorScheme.error
-                    : colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
+        title: Text(
+          'NUDGE',
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.4,
+          ),
         ),
         actions: [
           IconButton(
-            tooltip: 'Plantillas de WhatsApp',
+            tooltip: 'Plantilla de Respuesta',
             onPressed: () {
               HapticFeedback.lightImpact();
               TemplateEditorSheet.show(context);
@@ -112,7 +108,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
             icon: const Icon(Icons.sms_outlined),
           ),
           IconButton(
-            tooltip: 'Sincronizar con Google Calendar',
+            tooltip: 'Sincronizar',
             onPressed: syncState.isSyncing
                 ? null
                 : () => _triggerManualSync(context),
@@ -136,24 +132,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
                 HapticFeedback.lightImpact();
                 _showAccountSheet(context);
               },
-              icon: CircleAvatar(
-                radius: 16,
-                backgroundColor: authState.isSignedIn
-                    ? colorScheme.primaryContainer
-                    : colorScheme.surfaceContainerHighest,
-                foregroundColor: authState.isSignedIn
-                    ? colorScheme.onPrimaryContainer
-                    : colorScheme.onSurfaceVariant,
-                child: authState.isSignedIn
-                    ? Text(
-                        (authState.user?.displayName ??
-                                authState.user?.email ??
-                                'G')[0]
-                            .toUpperCase(),
-                        style: theme.textTheme.labelLarge,
-                      )
-                    : const Icon(Icons.account_circle_outlined, size: 20),
-              ),
+              icon: _GoogleAccountAvatar(user: authState.user, radius: 16),
             ),
           ),
         ],
@@ -252,6 +231,8 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
                       if (appointments.isEmpty) {
                         return _EmptyDayView(
                           selectedDate: selectedDate,
+                          upcomingDate: upcomingDay.date,
+                          upcomingAppointments: upcomingDay.appointments,
                           onCreateTap: () {
                             HapticFeedback.lightImpact();
                             AppointmentFormSheet.show(
@@ -259,6 +240,25 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
                               initialDate: selectedDate,
                             );
                           },
+                          onJumpToUpcomingDate: upcomingDay.date == null
+                              ? null
+                              : () {
+                                  HapticFeedback.lightImpact();
+                                  ref
+                                          .read(selectedDateProvider.notifier)
+                                          .state =
+                                      upcomingDay.date!;
+                                },
+                          onEditUpcomingTap: (AppointmentEntity appt) =>
+                              AppointmentFormSheet.show(
+                                context,
+                                initialDate: DateFormatters.startOfDay(
+                                  appt.startTime,
+                                ),
+                                existing: appt,
+                              ),
+                          onWhatsAppUpcomingTap: (AppointmentEntity appt) =>
+                              _sendCardReminder(context, appt),
                         );
                       }
 
@@ -300,31 +300,6 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
     );
   }
 
-  String _buildSyncSubtitle(
-    AuthState authState,
-    SyncUiState syncState,
-    int pendingCount,
-  ) {
-    if (!syncState.isOnline) {
-      return pendingCount > 0
-          ? 'Modo offline · $pendingCount en cola'
-          : 'Modo offline';
-    }
-    if (!authState.isSignedIn) {
-      return 'Solo local · Conecta tu cuenta';
-    }
-    if (syncState.isSyncing) {
-      return 'Sincronizando en la nube...';
-    }
-    if (syncState.lastError != null) {
-      return 'Error de sincronización · Toca para reintentar';
-    }
-    if (syncState.lastSyncAt != null) {
-      return 'Tiempo real · ${DateFormatters.formatTime(syncState.lastSyncAt!)}';
-    }
-    return authState.user?.email ?? 'Sincronización en tiempo real';
-  }
-
   Future<void> _triggerManualSync(BuildContext screenContext) async {
     HapticFeedback.lightImpact();
     final result = await ref
@@ -352,23 +327,16 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
         result.pushedCreated + result.pushedUpdated + result.pushedDeleted;
     final pulled = result.pulledUpserted + result.pulledDeleted;
     if (pushed == 0 && pulled == 0) {
-      return 'Agenda al día con Google Calendar.';
+      return 'Agenda al día.';
     }
-    return 'Sincronizado: $pushed enviadas, $pulled actualizadas desde Calendar.';
+    return 'Sincronizado: $pushed enviadas, $pulled actualizadas.';
   }
 
   Future<void> _sendCardReminder(
     BuildContext screenContext,
     AppointmentEntity appointment,
   ) async {
-    final tomorrow = DateFormatters.tomorrowRange().start;
-    final isTomorrow = DateFormatters.isSameDay(
-      appointment.startTime,
-      tomorrow,
-    );
-    final template = isTomorrow
-        ? ref.read(tomorrowTemplateBodyProvider)
-        : ref.read(confirmationTemplateBodyProvider);
+    final template = ref.read(responseTemplateBodyProvider);
 
     final launched = await ref
         .read(appointmentsControllerProvider.notifier)
@@ -402,21 +370,13 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'Sincronización en la nube',
-                    style: theme.textTheme.titleLarge,
-                  ),
+                  Text('Cuenta de Google', style: theme.textTheme.titleLarge),
                   const SizedBox(height: 12),
                   Card(
                     child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: colorScheme.primaryContainer,
-                        foregroundColor: colorScheme.onPrimaryContainer,
-                        child: Icon(
-                          auth.isSignedIn
-                              ? Icons.cloud_done_outlined
-                              : Icons.cloud_off_outlined,
-                        ),
+                      leading: _GoogleAccountAvatar(
+                        user: auth.user,
+                        radius: 22,
                       ),
                       title: Text(
                         auth.isSignedIn
@@ -426,10 +386,9 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
                       subtitle: Text(
                         auth.isSignedIn
                             ? '${auth.user!.email}\n'
-                                  'Cloud Firestore (tiempo real) + espejo en Google Calendar\n'
-                                  '${sync.lastSyncAt != null ? 'Última sync: ${DateFormatters.formatCompactDateTime(sync.lastSyncAt!)}' : 'Sincronización activa'}'
+                                  '${sync.lastSyncAt != null ? 'Última sincronización: ${DateFormatters.formatCompactDateTime(sync.lastSyncAt!)}' : 'Sincronización activa'}'
                                   '${pending > 0 ? ' · $pending pendientes' : ''}'
-                            : 'Conecta tu cuenta de Google para sincronizar citas en tiempo real (Firebase) y reflejarlas en Google Calendar.',
+                            : 'Conecta tu cuenta de Google para respaldar y sincronizar tus datos.',
                       ),
                     ),
                   ),
@@ -469,6 +428,22 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
                           ? null
                           : () async {
                               HapticFeedback.lightImpact();
+                              final switched = await sheetRef
+                                  .read(authControllerProvider.notifier)
+                                  .switchAccount();
+                              if (switched && context.mounted) {
+                                Navigator.of(context).pop();
+                              }
+                            },
+                      icon: const Icon(Icons.switch_account_outlined),
+                      label: const Text('Cambiar cuenta'),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: auth.isLoading
+                          ? null
+                          : () async {
+                              HapticFeedback.lightImpact();
                               await sheetRef
                                   .read(authControllerProvider.notifier)
                                   .signOut();
@@ -476,6 +451,9 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
                                 Navigator.of(context).pop();
                               }
                             },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colorScheme.error,
+                      ),
                       icon: const Icon(Icons.logout_rounded),
                       label: const Text('Desconectar cuenta'),
                     ),
@@ -549,7 +527,7 @@ class _OfflineOrPendingBanner extends StatelessWidget {
           Expanded(
             child: Text(
               isOnline
-                  ? '$pendingCount cambios locales por subir a Calendar'
+                  ? '$pendingCount cambios pendientes por sincronizar'
                   : 'Sin conexión · Los cambios se guardan localmente'
                         '${pendingCount > 0 ? ' ($pendingCount)' : ''}',
               style: theme.textTheme.labelMedium?.copyWith(
@@ -665,7 +643,7 @@ class _TomorrowRemindersBanner extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Recordatorios de mañana ($totalCount)',
+                        'Confirmaciones de mañana ($totalCount)',
                         style: theme.textTheme.titleSmall?.copyWith(
                           color: hasAppointments
                               ? colorScheme.onTertiaryContainer
@@ -676,8 +654,8 @@ class _TomorrowRemindersBanner extends StatelessWidget {
                       Text(
                         hasAppointments
                             ? (pendingCount > 0
-                                  ? '$pendingCount por enviar por WhatsApp con un toque'
-                                  : 'Todos los recordatorios de mañana fueron enviados')
+                                  ? '$pendingCount por confirmar por WhatsApp con un toque'
+                                  : 'Todas las confirmaciones de mañana fueron enviadas')
                             : 'No hay citas programadas para mañana',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: hasAppointments
@@ -706,11 +684,70 @@ class _TomorrowRemindersBanner extends StatelessWidget {
   }
 }
 
+class _GoogleAccountAvatar extends StatelessWidget {
+  const _GoogleAccountAvatar({required this.user, required this.radius});
+
+  final AuthUser? user;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final photoUrl = user?.photoUrl?.trim();
+
+    if (user == null) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: colorScheme.surfaceContainerHighest,
+        foregroundColor: colorScheme.onSurfaceVariant,
+        child: Icon(Icons.account_circle_outlined, size: radius * 1.25),
+      );
+    }
+
+    final initial = (user!.displayName ?? user!.email).trim().isNotEmpty
+        ? (user!.displayName ?? user!.email).trim()[0].toUpperCase()
+        : 'G';
+
+    final fallback = Text(initial, style: theme.textTheme.labelLarge);
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: colorScheme.primaryContainer,
+      foregroundColor: colorScheme.onPrimaryContainer,
+      child: (photoUrl != null && photoUrl.isNotEmpty)
+          ? ClipOval(
+              child: Image.network(
+                photoUrl,
+                width: radius * 2,
+                height: radius * 2,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => fallback,
+              ),
+            )
+          : fallback,
+    );
+  }
+}
+
 class _EmptyDayView extends StatelessWidget {
-  const _EmptyDayView({required this.selectedDate, required this.onCreateTap});
+  const _EmptyDayView({
+    required this.selectedDate,
+    required this.onCreateTap,
+    this.upcomingDate,
+    this.upcomingAppointments = const <AppointmentEntity>[],
+    this.onJumpToUpcomingDate,
+    this.onEditUpcomingTap,
+    this.onWhatsAppUpcomingTap,
+  });
 
   final DateTime selectedDate;
+  final DateTime? upcomingDate;
+  final List<AppointmentEntity> upcomingAppointments;
   final VoidCallback onCreateTap;
+  final VoidCallback? onJumpToUpcomingDate;
+  final ValueChanged<AppointmentEntity>? onEditUpcomingTap;
+  final ValueChanged<AppointmentEntity>? onWhatsAppUpcomingTap;
 
   @override
   Widget build(BuildContext context) {
@@ -719,7 +756,7 @@ class _EmptyDayView extends StatelessWidget {
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(24, 32, 24, 100),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 104),
       children: [
         Card(
           child: Padding(
@@ -751,6 +788,38 @@ class _EmptyDayView extends StatelessWidget {
             ),
           ),
         ),
+        if (upcomingDate != null && upcomingAppointments.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Próximas Citas',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.calendar_today_rounded, size: 15),
+                  label: Text(DateFormatters.formatShortDate(upcomingDate!)),
+                  onPressed: onJumpToUpcomingDate,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (final appointment in upcomingAppointments) ...[
+            AppointmentCard(
+              appointment: appointment,
+              onTap: () => onEditUpcomingTap?.call(appointment),
+              onWhatsAppTap: () => onWhatsAppUpcomingTap?.call(appointment),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ],
       ],
     );
   }

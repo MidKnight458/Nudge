@@ -1,7 +1,7 @@
 name: nudge
 description: "Gestión de citas estilo Pixel con sincronización de Google Calendar y recordatorios rápidos por WhatsApp."
 publish_to: 'none'
-version: 1.1.0+5
+version: 1.2.0+6
 
 environment:
   sdk: '>=3.13.0 <4.0.0'
@@ -43,6 +43,11 @@ dependencies:
 
   # Deep Linking WhatsApp
   url_launcher: ^6.3.0
+
+  # Archivos y adjuntos de clientes
+  file_picker: ^13.4.1
+  image_picker: ^1.2.4
+  open_filex: ^5.0.0
 
 dev_dependencies:
   flutter_test:

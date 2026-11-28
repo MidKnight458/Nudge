@@ -1,4 +1,5 @@
 import 'package:googleapis/calendar/v3.dart' as calendar;
+import 'package:googleapis/drive/v3.dart' as drive;
 
 /// Lightweight representation of the signed-in Google account.
 class AuthUser {
@@ -36,7 +37,15 @@ class AuthenticatedCalendarClient {
   final void Function() close;
 }
 
-/// Domain contract for Google authentication and Calendar API authorization.
+/// Scoped handle to an authenticated Google Drive API client.
+class AuthenticatedDriveClient {
+  const AuthenticatedDriveClient({required this.api, required this.close});
+
+  final drive.DriveApi api;
+  final void Function() close;
+}
+
+/// Domain contract for Google authentication and Calendar/Drive API authorization.
 abstract interface class AuthRepository {
   Stream<AuthUser?> get authStateChanges;
 
@@ -51,4 +60,8 @@ abstract interface class AuthRepository {
   Future<void> clearAuthCache();
 
   Future<AuthenticatedCalendarClient?> openCalendarClient();
+
+  Future<AuthenticatedDriveClient?> openDriveClient({
+    bool requestScopeIfNeeded = false,
+  });
 }
